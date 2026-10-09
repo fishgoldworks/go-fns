@@ -1,28 +1,32 @@
-var expectFunction = require("./expectFunction");
+'use strict';
+
+var expectFunction = require('./util/expectFunction');
 
 /**
- * Creates a function that takes an array of values and passes the values to the given function as individual parameters.
- * @param {Function} fn The function to execute with individual parameters.
- * @returns {Function} The new function that passes an array of values to the given function as individual parameters.
- * @throws {TypeError} if <code>fn</code> is not a function.
+ * Creates a function that passes an array-like input to its callback as individual arguments.
+ * The returned function forwards its caller's `this` to the callback and returns promises
+ * unchanged. Arrays, typed arrays and array-like objects work; `null` or `undefined` supplies
+ * no arguments. Iterability alone does not expand a collection.
+ * @param {Function} fn Required callback.
+ * @returns {Function} A wrapper returning the callback result after expanding its argument
+ * list.
+ * @throws {TypeError} If `fn` is not a function, or a later argument list is primitive and
+ * non-nullish. Argument-list getter and callback errors propagate unchanged.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#spreadfn | Full API documentation}
  * @example
- * function sum(a, b) {
- *    return a + b;
- * }
- * 
- * spread(sum)([1, 2]); // => 3
- * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax|Spread operator}
- * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply|Function.prototype.apply}
+ * const sum = spread((a, b) => a + b);
+ * sum([1, 2]);                     // => 3
+ * sum({ 0: 4, 1: 5, length: 2 });  // => 9
  * @since 1.0.0
  * @static
  * @memberof Utility
  */
 function spread(fn) {
-    expectFunction(fn);
+  expectFunction(fn);
 
-    return function (args) {
-        return fn.apply(this, args);
-    };
+  return function (args) {
+    return Reflect.apply(fn, this, args === null || args === undefined ? [] : args);
+  };
 }
 
 module.exports = spread;

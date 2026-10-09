@@ -1,31 +1,54 @@
-var expectFunctions = require("./expectFunctions");
+'use strict';
+
+var normalizeFunctions = require('./util/normalizeFunctions');
+// Call unary stages without allocating argument arrays or reading callback properties.
+var call = Function.prototype.call.bind(Function.prototype.call);
 
 /**
- * Creates a function that executes a series of functions in the order provided.
- * First it passes the parameters to the first function and then the output 
- * is used as the input for the next function in the sequence, 
- * and so on until it reaches the end and finally it returns the output of the last function.
- * @param {...Function} fns The functions to execute sequentially.
- * @returns {Function} The new function that sequentially executes the given functions.
- * @throws {TypeError} if any of the given values is not a function, null or undefined.
+ * Creates a function that runs synchronous stages from left to right.
+ * The first stage receives all call arguments; each later stage receives the preceding
+ * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
+ * passed through without awaiting.
+ * @param {...(Function|null|undefined)} fns Functions in call order; `null` and `undefined`
+ * entries are skipped.
+ * @returns {Function} A pipeline returning the last stage result, or `undefined` when no
+ * stages remain.
+ * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
+ * later stage calls propagate unchanged.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  * @example
- * pipe(Math.floor)(4.5); // => 4
- * 
- * pipe(Math.floor, Math.sqrt)(4.5); // => 2
+ * const doubleSum = pipe((a, b) => a + b, value => value * 2);
+ * doubleSum(2, 3);               // => 10
+ * pipe()(42);                    // => undefined
  * @since 1.0.0
  * @static
  * @memberof Utility
  */
 function pipe(fns) {
-    var queue = expectFunctions(arguments);
+  var queue = normalizeFunctions(arguments);
 
-    return function () {
-        var result = queue[0] != null ? queue[0].apply(this, arguments) : undefined;
-        for (var i = 1; i < queue.length; i++) {
-            result = queue[i].call(this, result);
-        }
-        return result;
-    };
+  return function () {
+    var result = queue.length > 0 ? Reflect.apply(queue[0], this, arguments) : undefined;
+    for (var i = 1; i < queue.length; i++) {
+      result = call(queue[i], this, result);
+    }
+    return result;
+  };
 }
 
 module.exports = pipe;
+/**
+ * Creates a function that runs stages from left to right, awaiting each result. Alias of
+ * `pipeAsync`.
+ * The first stage receives all call arguments; each later stage receives one awaited result.
+ * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
+ * immediately; calling the pipeline starts the first stage and returns a promise.
+ * @param {...(Function|null|undefined)} fns Functions in call order; `null` and `undefined`
+ * entries are skipped.
+ * @returns {Function} A pipeline whose promise resolves to the last awaited result, or
+ * `undefined` when no stages remain. A throw or rejection stops later stages.
+ * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
+ * the pipeline rejects with the original stage failure.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ */
+module.exports.async = require('./pipeAsync');

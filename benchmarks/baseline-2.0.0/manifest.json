@@ -1,0 +1,22 @@
+{
+  "name": "go-fns",
+  "version": "2.0.0",
+  "source": "Unmodified production source and browser bundles from the previously supplied go-fns-2.0.0.zip",
+  "files": {
+    "dist/go-fns.js": "dd080688e873f97d46475dc1124d48b558cd59c5b61c9cd70b2154d26edfd5ec",
+    "dist/go-fns.min.js": "7558ed7750a884156481ee14e20f50e5b593bc885e0c14f26422f398ac599d7e",
+    "index.js": "b75df358d75fb323df821145c986e3529be433784e7d52ab30e5198b9e04f79b",
+    "src/attempt.js": "acc32e489d93e82e3f659d495a866205b781f71032ddd6422145904151768791",
+    "src/delay.js": "4597cb7b422daf602ccddcc3381ddb8e40dae74635c57a3490142bb198995d15",
+    "src/logic/and.js": "042a894b31432b16af18988a527629a8df9738094e7419b4cfdd9f6ac58443d9",
+    "src/logic/nor.js": "3f2673ec3849ac0a237738719aa3ddcc8001bdc86059f6428cf085cdab7504f6",
+    "src/logic/not.js": "f6b53fac77af8e528d47fe5ba0617f9258dd7319967d675f9cf9ef5033e68ad1",
+    "src/logic/or.js": "46d29b65331122feb8388bd8c0e9e9b3f6a9a767a5db2382aba0a486eefe2b85",
+    "src/logic/xor.js": "6653e1afdf64055d4d01f8a12254db70f4db556e85a01130cb09e5d62dd6e8ed",
+    "src/pipe.js": "b2f3f082003a75c19cc89ad1a9ac7a1ba0d10cad54dac17ea60be76b90509473",
+    "src/repeat.js": "841a9f51c2fb7b869a4461a27cf490e3d419bb520c494716ec2c896a9cdf2ae7",
+    "src/spread.js": "00f026216618551428278a0a9ddaf1dd2eec483efdb29605816589ae40af1f1d",
+    "src/util/expectFunction.js": "1ebd940b20738fb213c4c55c99acf94bbc366bc39b7e0c45302c4ff62f3f5f17",
+    "src/util/normalizeFunctions.js": "7259915988b2b0e4ed929d95b8f54c5fcd6d675f1562b11b20afe29a8f5a44bd"
+  }
+}

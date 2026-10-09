@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "files": [
+    "contracts.ts",
+    "imports.mts",
+    "additions.ts",
+    "cached-and-variadic-results.ts",
+    "optional-callbacks.ts",
+    "callback-unions.ts",
+    "async-predicates.ts",
+    "async-completion.ts",
+    "callback-inference.ts",
+    "pipeline-unions.ts",
+    "overloaded-results.ts",
+    "receiver-composition.ts",
+    "bound-tuple-unions.ts"
+  ]
+}

@@ -1,37 +1,45 @@
-var expectFunctions = require("../expectFunctions");
-var filterFunctions = require("../filterFunctions");
+'use strict';
+
+var normalizeFunctions = require('../util/normalizeFunctions');
 
 /**
- * Creates a function that tests if exactly one of the given functions returns a truthy value.
- * The parameters you pass when invoking the created function will be passed down to the given functions 
- * with the this binding of the respective function.
- * @param {...Function} fns The functions to test.
- * @returns {Function} The new function that tests if exactly one of the given functions return a truthy value.
- * @throws {TypeError} if any of the given values is not a function, null or undefined.
+ * Creates a predicate that determines whether exactly one supplied predicate returns a truthy
+ * value.
+ * Stops at the second truthy result. Three truthy results still produce `false`; this is not
+ * odd-parity XOR. The returned predicate forwards all call arguments and the caller's `this`.
+ * Promise results are truthy and are never awaited. Nullish predicates are skipped; an empty
+ * list returns `false` when called.
+ * @param {...(Function|null|undefined)} fns Functions in call order; `null` and `undefined`
+ * entries are skipped.
+ * @returns {Function} A predicate returning `true` if exactly one result is truthy; otherwise
+ * `false`.
+ * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
+ * are validated before evaluation; later callback errors propagate.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
  * @example
- * xor(isString, isNumber)("abc"); // => true
- * 
- * xor(isString, isNumber)(1);  // => true
- * 
- * xor(isString, isNumber)(true); // => false
+ * const predicate = xor(value => typeof value === 'number', value => value > 0);
+ * predicate(3);                  // => false
+ * predicate(-3);                 // => true
+ * xor()();                       // => false
  * @since 1.0.0
  * @static
  * @memberof Logic
  */
 function xor(fns) {
-    fns = filterFunctions(expectFunctions(arguments));
-    
-    return function () {
-        var passed = 0;
-        for (var i = 0; i < fns.length; i++) {
-            if (fns[i].apply(this, arguments)) {
-                if (++passed > 1) {
-                    return false;
-                }
-            }
+  fns = normalizeFunctions(arguments);
+
+  return function () {
+    var passed = 0;
+    for (var i = 0; i < fns.length; i++) {
+      if (Reflect.apply(fns[i], this, arguments)) {
+        if (++passed > 1) {
+          return false;
         }
-        return passed === 1;
-    };
+      }
+    }
+    return passed === 1;
+  };
 }
 
 module.exports = xor;
+module.exports.async = require('./xorAsync');

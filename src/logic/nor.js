@@ -1,32 +1,40 @@
-var expectFunctions = require("../expectFunctions");
-var filterFunctions = require("../filterFunctions");
+'use strict';
+
+var normalizeFunctions = require('../util/normalizeFunctions');
 
 /**
- * Creates a function that tests if all the given functions return a falsy value.
- * The parameters you pass when invoking the created function will be passed down to the given functions 
- * with the this binding of the respective function.
- * @param {...Function} fns The functions to test.
- * @returns {Function} The new function that tests if all the given functions return a falsy value.
- * @throws {TypeError} if any of the given values is not a function, null or undefined.
+ * Creates a predicate that determines whether all supplied predicates return falsy values.
+ * Stops at the first truthy result. The returned predicate forwards all call arguments and
+ * the caller's `this`. Promise results are truthy and are never awaited. Nullish predicates
+ * are skipped; an empty list returns `false` when called.
+ * @param {...(Function|null|undefined)} fns Functions in call order; `null` and `undefined`
+ * entries are skipped.
+ * @returns {Function} A predicate returning `true` if at least one predicate remains and all
+ * results are falsy; otherwise `false`.
+ * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
+ * are validated before evaluation; later callback errors propagate.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
  * @example
- * nor(isString, isNumber)(true); // => true
- * 
- * nor(isString, isNumber)("abc"); // => false
+ * const predicate = nor(value => typeof value === 'number', value => value > 0);
+ * predicate(3);                  // => false
+ * predicate(-3);                 // => false
+ * nor()();                       // => false
  * @since 1.0.0
  * @static
  * @memberof Logic
  */
 function nor(fns) {
-    fns = filterFunctions(expectFunctions(arguments));
+  fns = normalizeFunctions(arguments);
 
-    return function () {
-        for (var i = 0; i < fns.length; i++) {
-            if (fns[i].apply(this, arguments)) {
-                return false;
-            }
-        }
-        return fns.length > 0;
-    };
+  return function () {
+    for (var i = 0; i < fns.length; i++) {
+      if (Reflect.apply(fns[i], this, arguments)) {
+        return false;
+      }
+    }
+    return fns.length > 0;
+  };
 }
 
 module.exports = nor;
+module.exports.async = require('./norAsync');

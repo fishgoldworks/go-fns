@@ -1,0 +1,10 @@
+{
+  "archive": "go-fns-2.2.0.zip",
+  "sha256": "dfd9aea71396c42e10709907a762083b68b795227ffeef256f4706458bdb16ae",
+  "files": {
+    "src/partial.js": "0569eec953c9e54af38195469bdf23a3756817b10829e5548cc9d28b9c60a311",
+    "src/partialRight.js": "2c1c5b79ee193fd083cdd6890b88563eceb59db49a9d577ff18d9aed48bb166c",
+    "src/util/expectFunction.js": "1ebd940b20738fb213c4c55c99acf94bbc366bc39b7e0c45302c4ff62f3f5f17",
+    "dist/go-fns.min.js": "9fb9f5c040774f43dbbf0c49033c56d0db366e959ad28d0656aeac3f127480a9"
+  }
+}

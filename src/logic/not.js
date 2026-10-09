@@ -1,26 +1,45 @@
-var expectFunction = require("../expectFunction");
+'use strict';
+
+var expectFunction = require('../util/expectFunction');
 
 /**
- * Creates a function that negates the result of the given function.
- * The parameters you pass when invoking the created function will be passed down to the given function 
- * with the this binding of the given function.
- * @param {Function} fn The function to negate.
- * @returns {Function} The new function that negates the result of the given function.
- * @throws {TypeError} if the given value is not a function.
+ * Creates a predicate that negates its callback's truthiness.
+ * Unlike the multi-predicate helpers, a missing or nullish callback is invalid. The returned
+ * predicate forwards all call arguments and the caller's `this`. Promise results are truthy
+ * and are never awaited.
+ * @param {Function} fn Required predicate; missing or nullish values are invalid.
+ * @returns {Function} A predicate returning `true` if the callback result is falsy; otherwise
+ * `false`.
+ * @throws {TypeError} If a required callback is not a function. Errors from later callback
+ * calls propagate unchanged.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notfn | Full API documentation}
  * @example
- * not(isString)(1); // => true
- * 
- * not(isString)("abc"); // => false
+ * const isNotInteger = not(Number.isInteger);
+ * isNotInteger(1.5);             // => true
+ * isNotInteger(2);               // => false
  * @since 1.0.0
  * @static
  * @memberof Logic
  */
 function not(fn) {
-    expectFunction(fn);
+  expectFunction(fn);
 
-    return function () {
-        return !fn.apply(fn, arguments);
-    };
+  return function () {
+    return !Reflect.apply(fn, this, arguments);
+  };
 }
 
 module.exports = not;
+/**
+ * Creates an async predicate that negates its callback's awaited truthiness. Alias of
+ * `notAsync`. Forwards all original call arguments and the caller's `this`; input arguments
+ * are never awaited. Construction validates synchronously without invoking the callback.
+ * @param {Function} fn Required synchronous or asynchronous predicate; missing or nullish
+ * values are invalid.
+ * @returns {Function} An async predicate resolving to the negated awaited truthiness.
+ * Callback throws and rejections reject with the original value.
+ * @throws {TypeError} If the required callback is not a function.
+ * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notasyncfn | Full API documentation}
+ * @since 2.0.0
+ */
+module.exports.async = require('./notAsync');

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "lib": ["ES2020"],
+    "types": [],
+    "skipLibCheck": false,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "files": [
+    "contracts.ts",
+    "additions.ts",
+    "cached-and-variadic-results.ts",
+    "optional-callbacks.ts",
+    "callback-unions.ts",
+    "async-predicates.ts",
+    "async-completion.ts",
+    "callback-inference.ts",
+    "pipeline-unions.ts",
+    "overloaded-results.ts",
+    "receiver-composition.ts",
+    "bound-tuple-unions.ts"
+  ]
+}

@@ -1,45 +1,82 @@
 {
-    "name": "go-fns",
-    "description": "Utility functions for functions.",
-    "author": "Michael Ko",
-    "email": "koyote130708@gmail.com",
-    "version": "1.0.0",
-    "license": "GNU LGPLv3",
-    "keywords": [
-        "function", 
-        "utilities",
-        "utils",
-        "and", 
-        "or",
-        "xor",
-        "nor",
-        "not",
-        "logical",
-        "connectives"
-    ],
-    "homepage": "https://github.com/koyote130708/go-fns",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/koyote130708/go-fns.git"
-    },
-    "main": "index.js",
-    "scripts": {
-        "build": "npm run bundle & npm run minify",
-        "bundle": "webpack build --mode=none --progress --entry ./index.js -o ./dist --output-filename go-fns.js --output-library-name=Functions --output-library-type=umd --output-global-object=this",
-        "minify": "uglifyjs ./dist/go-fns.js -c -m --source-map -o ./dist/go-fns.min.js",
-        "test": "mocha -u tdd test/**/*.js",
-        "coverage": "c8 --clean npm run test",
-        "docs": "documentation readme index.js --section=Documentation",
-        "docs:html": "documentation build index.js -f html -o docs"
-    },
-    "devDependencies": {
-        "c8": "^7.12.0",
-        "chai": "^4.3.6",
-        "documentation": "^14.0.0",
-        "mocha": "^10.0.0",
-        "uglify-js": "^3.17.3",
-        "webpack": "^5.74.0",
-        "webpack-cli": "^4.10.0"
-    },
-    "engine": "node >= 0.10"
+  "name": "go-fns",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Utility functions for functions.",
+  "license": "MIT",
+  "author": "Michael Ko",
+  "email": "koyote130708@gmail.com",
+  "keywords": [
+    "function",
+    "utilities",
+    "utils",
+    "and",
+    "or",
+    "xor",
+    "nor",
+    "not",
+    "logical",
+    "connectives",
+    "async",
+    "pipeline",
+    "typescript",
+    "once",
+    "sleep"
+  ],
+  "homepage": "https://github.com/koyote130708/go-fns",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koyote130708/go-fns.git"
+  },
+  "bugs": {
+    "url": "https://github.com/koyote130708/go-fns/issues"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "docs": "node scripts/docs.js",
+    "docs:html": "npm run docs && node scripts/docs-html.js",
+    "pack:package": "node scripts/pack-package.js",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test": "node scripts/test.js",
+    "test:docs": "node scripts/docs.js --check && node --test scripts/test-docs.js scripts/test-docs-html.js && node scripts/run-tests.js test/documentation.test.js",
+    "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.browser.json && tsc -p test/types/tsconfig.nodenext.json",
+    "test:build": "node --test scripts/test-build.js",
+    "test:tooling": "node --test scripts/test-tooling.js scripts/test-verify.js scripts/test-runner.js scripts/test-test-output.js",
+    "test:artifacts": "node scripts/test-artifacts.js",
+    "test:package": "node scripts/test-package.js",
+    "test:release": "node --test scripts/test-release.js scripts/test-pack-safety.js",
+    "test:browser": "python scripts/test-browser-driver.py && python scripts/test-browser.py",
+    "test:browser-driver": "python scripts/test-browser-driver.py",
+    "coverage": "c8 --clean npm test",
+    "coverage:native": "npm test -- --experimental-test-coverage --test-coverage-include=\"index.js\" --test-coverage-include=\"src/**/*.js\" --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
+    "verify": "node scripts/check-dev-node.js && node scripts/verify.js",
+    "verify:all": "node scripts/verify.js --browser",
+    "verify:native": "node scripts/verify.js --native",
+    "benchmark": "node scripts/benchmark.js",
+    "benchmark:adapters": "node scripts/benchmark-adapters.js",
+    "benchmark:adapters:browser": "python scripts/benchmark-adapters-browser.py",
+    "benchmark:browser": "python scripts/benchmark-browser.py",
+    "prepack": "node scripts/root-package-guard.js",
+    "prepublishOnly": "node scripts/root-package-guard.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "c8": "7.12.0",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "markdown-it": "15.0.2",
+    "prettier": "3.9.6",
+    "terser": "5.51.2",
+    "typescript": "5.8.3",
+    "typescript-eslint": "8.70.1",
+    "webpack": "5.111.1"
+  }
 }

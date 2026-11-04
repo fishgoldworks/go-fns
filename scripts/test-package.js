@@ -121,10 +121,7 @@ try {
     { cwd: consumer }
   );
   const installed = path.join(consumer, 'node_modules/go-fns');
-  require('./lib/check-library-readme.cjs')(
-    fs.readFileSync(path.join(installed, 'README.md'), 'utf8'),
-    'Installed README'
-  );
+  require('./lib/check-library-readme.cjs').checkPackage(installed);
   const licence = fs.readFileSync(path.join(root, 'LICENSE.md'), 'utf8').replace(/\r\n/g, '\n').trim();
   for (const file of ['go-fns.js', 'go-fns.min.js']) {
     const bundle = fs.readFileSync(path.join(installed, 'dist', file), 'utf8').replace(/\r\n/g, '\n');

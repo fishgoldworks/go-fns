@@ -131,7 +131,9 @@ Importing the library does not start timers, make network requests or access the
 
 See the **[full API documentation](docs/API.md)** for parameters, return values, errors and examples.
 
-**Composition and observation**
+[Composition and observation](#composition-and-observation) · [Predicate logic](#predicate-logic) · [Conditional transformations](#conditional-transformations) · [Argument adaptation](#argument-adaptation) · [Execution and outcomes](#execution-and-outcomes) · [Scheduling and cancellation](#scheduling-and-cancellation)
+
+### Composition and observation
 
 | API | Description | Returns |
 | --- | --- | --- |
@@ -140,7 +142,7 @@ See the **[full API documentation](docs/API.md)** for parameters, return values,
 | [`tap(observer)`](docs/API.md#tapobserver) | Creates a function that calls an observer and returns the original input. | **`Function`** — `(value: V) => V`<br><br>A wrapper that calls the observer and returns the exact input value or reference. |
 | [`tapAsync(observer)`](docs/API.md#tapasyncobserver) | Creates a function that awaits an observer before returning its input value. | **`Function`** — `(value: V) => Promise<Awaited<V>>`<br><br>A wrapper whose promise resolves to the input after the observer completes; promise inputs are unwrapped. |
 
-**Predicate logic**
+### Predicate logic
 
 | API | Description | Returns |
 | --- | --- | --- |
@@ -155,7 +157,7 @@ See the **[full API documentation](docs/API.md)** for parameters, return values,
 | [`xor(...fns)`](docs/API.md#xorfns) | Creates a predicate that determines whether exactly one supplied predicate returns a truthy value. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if exactly one result is truthy; otherwise `false`. |
 | [`xorAsync(...fns)`](docs/API.md#xorasyncfns) | Creates a predicate that awaits results in order and determines whether exactly one is truthy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` for exactly one truthy result; it stops at the second truthy result and otherwise resolves to `false`. |
 
-**Conditional transformations**
+### Conditional transformations
 
 | API | Description | Returns |
 | --- | --- | --- |
@@ -165,7 +167,7 @@ See the **[full API documentation](docs/API.md)** for parameters, return values,
 | [`ifElse(predicate, onTrue, onFalse)`](docs/API.md#ifelsepredicate-ontrue-onfalse) | Creates a function that evaluates a predicate once and calls the matching branch. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the result of `onTrue` for a truthy predicate result, or `onFalse` otherwise. |
 | [`ifElseAsync(predicate, onTrue, onFalse)`](docs/API.md#ifelseasyncpredicate-ontrue-onfalse) | Creates a function that awaits a predicate and runs only the matching branch. | **`Function`** — `(...args) => Promise<Awaited<T>>`<br><br>A wrapper resolving to the awaited result of `onTrue` for a truthy decision, or `onFalse` otherwise. |
 
-**Argument adaptation**
+### Argument adaptation
 
 | API | Description | Returns |
 | --- | --- | --- |
@@ -174,7 +176,7 @@ See the **[full API documentation](docs/API.md)** for parameters, return values,
 | [`partialRight(fn, ...args)`](docs/API.md#partialrightfn-args) | Creates a function that appends saved arguments to each call without binding its receiver. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the callback result after appending the saved arguments. |
 | [`unary(fn)`](docs/API.md#unaryfn) | Creates a function that forwards exactly one argument to its callback. | **`Function`** — `(value) => T`<br><br>A wrapper returning the callback result after passing exactly one argument. |
 
-**Execution and outcomes**
+### Execution and outcomes
 
 | API | Description | Returns |
 | --- | --- | --- |
@@ -186,7 +188,7 @@ See the **[full API documentation](docs/API.md)** for parameters, return values,
 | [`repeat(fn, count?, ...args)`](docs/API.md#repeatfn-count-args) | Invokes a callback a specified number of times synchronously and collects its results. | **`T[]`**<br><br>A fresh array containing each synchronous callback result in invocation order. |
 | [`repeatAsync(fn, count?, ...args)`](docs/API.md#repeatasyncfn-count-args) | Invokes a callback a specified number of times sequentially, awaiting each result. | **`Promise<Awaited<T>[]>`**<br><br>A promise resolving to a fresh array of sequentially awaited callback results in invocation order. |
 
-**Scheduling and cancellation**
+### Scheduling and cancellation
 
 | API | Description | Returns |
 | --- | --- | --- |
@@ -363,7 +365,7 @@ Those original labels and measurements remain unchanged so the results can be
 reproduced. They are not measurements of version 2.0.0 or a promise of
 whole-application speedups; some workloads were slower.
 
-See the [development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md#benchmarks-and-historical-evidence) for benchmark commands and output handling.
+See the [development guide](https://github.com/koyote130708/go-fns/blob/master/CONTRIBUTING.md#benchmarks-and-historical-evidence) for benchmark commands and output handling.
 
 ## Migration
 
@@ -394,14 +396,14 @@ npm run verify -- --node8 /path/to/node-8.0.0
 
 `npm run verify` builds and packs one candidate, then checks lint, formatting, generated documentation, source coverage, declarations, build recovery, tooling, package contents and installed consumers. `npm run verify:all` adds Chromium, Firefox and WebKit checks against the same archive, including the browser bundles and README example. `GO_FNS_NODE8` can supply the exact executable instead of `--node8`.
 
-The coverage badge measures executable source-line coverage. The documentation badge measures public API reference coverage. Neither badge guarantees correctness for every input. See the [development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md)
+The coverage badge measures executable source-line coverage. The documentation badge measures public API reference coverage. Neither badge guarantees correctness for every input. See the [development guide](https://github.com/koyote130708/go-fns/blob/master/CONTRIBUTING.md)
 for coverage scope, exact-runtime checks, build recovery, local package use,
 browser setup, release procedures and benchmark commands.
 
 ## Further reading
 
 - [Full API documentation](docs/API.md): parameters, return values, errors, examples and shared contracts.
-- [Development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md): contributor setup, verification, build, release and benchmark procedures.
+- [Development guide](https://github.com/koyote130708/go-fns/blob/master/CONTRIBUTING.md): contributor setup, verification, build, release and benchmark procedures.
 - [Changelog](CHANGELOG.md): releases and migration notes.
 - [Historical performance record](https://github.com/koyote130708/go-fns/blob/master/docs/performance.md): workloads and baseline results.
 

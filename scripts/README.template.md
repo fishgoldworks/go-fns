@@ -286,7 +286,7 @@ Those original labels and measurements remain unchanged so the results can be
 reproduced. They are not measurements of version 2.0.0 or a promise of
 whole-application speedups; some workloads were slower.
 
-See the [development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md#benchmarks-and-historical-evidence) for benchmark commands and output handling.
+See the [development guide](https://github.com/koyote130708/go-fns/blob/master/CONTRIBUTING.md#benchmarks-and-historical-evidence) for benchmark commands and output handling.
 
 ## Migration
 
@@ -317,14 +317,14 @@ npm run verify -- --node8 /path/to/node-8.0.0
 
 `npm run verify` builds and packs one candidate, then checks lint, formatting, generated documentation, source coverage, declarations, build recovery, tooling, package contents and installed consumers. `npm run verify:all` adds Chromium, Firefox and WebKit checks against the same archive, including the browser bundles and README example. `GO_FNS_NODE8` can supply the exact executable instead of `--node8`.
 
-The coverage badge measures executable source-line coverage. The documentation badge measures public API reference coverage. Neither badge guarantees correctness for every input. See the [development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md)
+The coverage badge measures executable source-line coverage. The documentation badge measures public API reference coverage. Neither badge guarantees correctness for every input. See the [development guide](https://github.com/koyote130708/go-fns/blob/master/CONTRIBUTING.md)
 for coverage scope, exact-runtime checks, build recovery, local package use,
 browser setup, release procedures and benchmark commands.
 
 ## Further reading
 
 - [Full API documentation](docs/API.md): parameters, return values, errors, examples and shared contracts.
-- [Development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md): contributor setup, verification, build, release and benchmark procedures.
+- [Development guide](https://github.com/koyote130708/go-fns/blob/master/CONTRIBUTING.md): contributor setup, verification, build, release and benchmark procedures.
 - [Changelog](CHANGELOG.md): releases and migration notes.
 - [Historical performance record](https://github.com/koyote130708/go-fns/blob/master/docs/performance.md): workloads and baseline results.
 

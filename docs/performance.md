@@ -1,6 +1,6 @@
 # Historical performance
 
-This record preserves measurements from the labelled unreleased development snapshots. For current commands and output handling, see the [benchmark and evidence guidance](project-validation.md#benchmarks-and-historical-evidence).
+This record preserves measurements from the labelled unreleased development snapshots. For current commands and output handling, see the [benchmark and evidence guidance](../CONTRIBUTING.md#benchmarks-and-historical-evidence).
 
 ## Historical 2.2.2 declaration patch context
 

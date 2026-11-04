@@ -3,9 +3,9 @@ const { test } = require('node:test');
 
 test('shared README conventions apply to the template and generated README', () => {
   const check = require('./lib/check-library-readme.cjs');
+  check.checkRepository(path.resolve(__dirname, '..'));
   for (const file of ['scripts/README.template.md', 'README.md']) {
     const markdown = fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8');
-    check(markdown, file);
     assert.throws(
       () => check(markdown.replace('Licensed under the [MIT licence](LICENSE.md).', '[MIT](LICENSE.md).'), file),
       /Licence sentence/
@@ -43,7 +43,7 @@ test('generation is repeatable and check rejects drift without writing', () => {
     fs.mkdirSync(path.join(root, 'scripts'));
     fs.writeFileSync(
       path.join(root, 'scripts/API.template.md'),
-      '# Fixture API\n{{VERSION}}\n## Contents\n{{TOC}}\n## API summary\n| API | Description | Returns |\n| --- | --- | --- |\n| [`run()`](#run) | Execute. | A value |\n\n### `run()`\nA result.\n'
+      '# Fixture API\n{{VERSION}}\n## Contents\n{{TOC}}\n## API summary\n\n**Run tasks**\n\n| API | Description | Returns |\n| --- | --- | --- |\n| [`run()`](#run) | Execute. | A value |\n\n**Stop tasks**\n\n| API | Description | Returns |\n| --- | --- | --- |\n| [`stop()`](#stop) | Stop. | A value |\n\n### `run()`\nA result.\n\n### `stop()`\nA result.\n'
     );
     fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify(pkg));
     fs.writeFileSync(
@@ -52,6 +52,14 @@ test('generation is repeatable and check rejects drift without writing', () => {
     );
     generate({ root });
     const before = fs.readFileSync(path.join(root, 'README.md'));
+    const overview = before.toString();
+    assert.match(overview, /- \[Usage\]\(#usage\)\n- \[API summary\]\(#api-summary\)\n## Usage/);
+    assert.match(
+      overview,
+      /## API summary\n\[Run tasks\]\(#run-tasks\) · \[Stop tasks\]\(#stop-tasks\)\n\n### Run tasks\n/
+    );
+    assert.ok(overview.includes('### Stop tasks\n\n| API'));
+    assert.ok(overview.includes('[`run()`](docs/API.md#run)'));
     generate({ root, check: true });
     generate({ root });
     assert.deepEqual(fs.readFileSync(path.join(root, 'README.md')), before);
@@ -209,7 +217,7 @@ test('public declaration tooltips explain calls and link to existing reference e
 });
 
 test('maintainer guide consumer-format examples match the runtime selector', () => {
-  const guide = fs.readFileSync(path.resolve(__dirname, '../docs/project-validation.md'), 'utf8');
+  const guide = fs.readFileSync(path.resolve(__dirname, '../CONTRIBUTING.md'), 'utf8');
   const section = guide
     .split('<!-- consumer-format-examples:start -->')[1]
     ?.split('<!-- consumer-format-examples:end -->')[0];

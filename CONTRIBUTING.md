@@ -1,9 +1,9 @@
-# go-fns validation and tooling
+# Contributing
 
 This guide owns go-fns contributor, validation and release procedures, and records deliberate tooling choices.
-The [package manifest](../package.json) owns command composition and pinned dependency versions;
-[`.nvmrc`](../.nvmrc) owns the development runtime. Contributor tools require Node.js 22.16.0 or later, excluding Node.js 23.
-For consumer requirements, see [runtime support](../README.md#runtime-support).
+The [package manifest](package.json) owns command composition and pinned dependency versions;
+[`.nvmrc`](.nvmrc) owns the development runtime. Contributor tools require Node.js 22.16.0 or later, excluding Node.js 23.
+For consumer requirements, see [runtime support](README.md#runtime-support).
 
 ## Development and release checks
 
@@ -75,9 +75,9 @@ TypeScript consumers, including default imports and public subpaths. Add
 the complete modern suite still runs. Node.js 8 checks CommonJS and compiled
 CommonJS TypeScript consumers. Native ESM consumer checks additionally run on
 Node.js 12.20.0+ within 12.x and on Node.js 14.13.0 or later, matching
-[Runtime support](../README.md#runtime-support). Earlier 12.x versions, 13.x and
+[Runtime support](README.md#runtime-support). Earlier 12.x versions, 13.x and
 14.0–14.12 run the CommonJS checks only. The shared
-[runtime selector](../scripts/runtime-support.js) owns this format selection;
+[runtime selector](scripts/runtime-support.js) owns this format selection;
 the table below is regression-checked against it.
 
 <!-- consumer-format-examples:start -->
@@ -112,7 +112,7 @@ benchmark evidence and development dependencies stay in the repository.
 
 ## Validation scope
 
-Run the focused checks listed in [package.json](../package.json), including `test:docs`, `test:types`, `test:build`, `test:artifacts`, `coverage` and `coverage:native`.
+Run the focused checks listed in [package.json](package.json), including `test:docs`, `test:types`, `test:build`, `test:artifacts`, `coverage` and `coverage:native`.
 
 The source suite covers receiver and argument forwarding, callable proxies,
 nullish stages, synchronous versus async outcomes, cached results, predicate
@@ -147,7 +147,7 @@ check rejects drift.
 ## Native capability inventory and absence checks
 
 The baseline remains Node.js 8.0.0 for CommonJS and the browser features in
-[Runtime support](../README.md#runtime-support). The runtime uses ordinary ES5
+[Runtime support](README.md#runtime-support). The runtime uses ordinary ES5
 object/array/function/error facilities (`Object.defineProperty`, `Array.isArray`,
 `Function.prototype.call`/`bind`), `Reflect.apply`, `Number.isInteger`,
 `Number.isFinite`, `Math.min`/`max`, `Date.now`, promises and async functions.
@@ -163,7 +163,7 @@ is looked up by production code. Caller values remain opaque to these utilities.
 | Host `setTimeout`, `clearTimeout`                      | Required only for requested timer work/cleanup. `delay` forwards to `setTimeout`; `sleep` uses both; scheduler registration/cancellation uses both. Missing timers cannot break imports or unrelated functions. Host errors follow the existing throw/rejection contract.                                                                                                      |
 | Conditional transformations                            | No native conversions are required. `applyIf` and `when` use predicate truthiness and preserve skipped input identity. `whenAsync` awaits its decision and the selected result or original input.                                                                                                                                                                              |
 
-[`test/helpers/capabilities.js`](../test/helpers/capabilities.js) evaluates fresh modules
+[`test/helpers/capabilities.js`](test/helpers/capabilities.js) evaluates fresh modules
 in a new realm after removing capabilities. It covers independent constructor/global
 and method absences, sole host aliases, clock/cancellation combinations and absent
 host timers. It checks root and focused modules, unaffected operations, callback and
@@ -266,7 +266,7 @@ live in `scripts/`. Run `npm run benchmark` or the specialised benchmark command
 in `package.json`. Write new results to a task-owned temporary path. Timing
 assertions are intentionally absent from correctness gates.
 
-The retained [performance record](performance.md) and historical samples explain
+The retained [performance record](docs/performance.md) and historical samples explain
 earlier optimisation decisions. Their original 2.0.x/2.2.x labels identify
 unreleased development snapshots; they are not current release measurements or
 published version history. Preserve those labels, inputs and recorded commands.
@@ -286,17 +286,17 @@ check that nested experiments remain untouched and do not execute or ship.
 
 ## Optional HTML tooling
 
-The local [HTML renderer](../scripts/docs-html.js) uses markdown-it directly. The [manifest](../package.json) and [lockfile](../package-lock.json) own that dependency; the former documentation.js/Vue compiler chain is no longer installed. Generate HTML only from maintained local Markdown and reassess the input boundary before accepting untrusted documentation.
+The local [HTML renderer](scripts/docs-html.js) uses markdown-it directly. The [manifest](package.json) and [lockfile](package-lock.json) own that dependency; the former documentation.js/Vue compiler chain is no longer installed. Generate HTML only from maintained local Markdown and reassess the input boundary before accepting untrusted documentation.
 
 All verification modes, including `verify:native`, run lint and formatting checks before building and packing. Package archive inspection also requires the system `tar` command on `PATH`.
 
 ## Executable code quality
 
-Run `npm run lint` and `npm run format:check`; `npm run format` applies the owned formatter configuration. Verification and CI run the read-only checks before the release gate. The [development manifest](../package.json) and [lockfile](../package-lock.json) own the ESLint, TypeScript ESLint, globals and Prettier versions; [ESLint configuration](../eslint.config.mjs) and [Prettier configuration](../.prettierrc.json) own their rules. The pinned tools support the documented contributor runtime; they do not change consumer compatibility.
+Run `npm run lint` and `npm run format:check`; `npm run format` applies the owned formatter configuration. Verification and CI run the read-only checks before the release gate. The [development manifest](package.json) and [lockfile](package-lock.json) own the ESLint, TypeScript ESLint, globals and Prettier versions; [ESLint configuration](eslint.config.mjs) and [Prettier configuration](.prettierrc.json) own their rules. The pinned tools support the documented contributor runtime; they do not change consumer compatibility.
 
 The baseline checks maintained JavaScript, tooling and tests, with explicit module/host environments, and parses TypeScript declarations and consumer fixtures. Compiler checks remain responsible for declaration semantics. Intentional public `any` types, import-equals declarations, structural empty-object types and unused compiler-only bindings retain narrow TypeScript-scope exceptions: changing those contracts solely for lint would alter supported consumers or remove negative cases. JavaScript still checks undefined and unused bindings; caught error bindings remain allowed for old-runtime syntax compatibility. Review these scopes when the related contracts change.
 
-Prettier formats maintained JavaScript/TypeScript, configuration, Markdown and documentation templates. [Formatter exclusions](../.prettierignore) cover generated distributions and documents, dependency/coverage output, locked or vendored data and historical evidence. Scoped `<!-- prettier-ignore -->` comments preserve aligned result examples; canonical documentation generation and executable-example checks still validate their results. Generated files must still pass their artefact freshness checks. No playbook modules or configuration dependency are imported.
+Prettier formats maintained JavaScript/TypeScript, configuration, Markdown and documentation templates. [Formatter exclusions](.prettierignore) cover generated distributions and documents, dependency/coverage output, locked or vendored data and historical evidence. Scoped `<!-- prettier-ignore -->` comments preserve aligned result examples; canonical documentation generation and executable-example checks still validate their results. Generated files must still pass their artefact freshness checks. No playbook modules or configuration dependency are imported.
 
 ## TypeScript compatibility
 

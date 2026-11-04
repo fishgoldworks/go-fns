@@ -33,4 +33,3 @@ function ifElse(predicate, onTrue, onFalse) {
   };
 }
 module.exports = ifElse;
-module.exports.async = require('./ifElseAsync');

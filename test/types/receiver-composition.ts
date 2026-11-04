@@ -64,7 +64,6 @@ const asyncPipelines = [
   pipeAsync(unrestricted, unrestricted, unrestricted, unrestricted, unrestricted, required, unrestricted),
   pipeAsync(unrestricted, unrestricted, unrestricted, unrestricted, unrestricted, unrestricted, required, unrestricted),
   pipeAsync(unrestricted, unrestricted, unrestricted, unrestricted, unrestricted, unrestricted, unrestricted, required),
-  pipe.async(required, unrestricted),
   pipeAsyncDeep(required, unrestricted)
 ] as const;
 type AsyncPipelineReceivers = Assert<ReceiversMatch<typeof asyncPipelines>>;

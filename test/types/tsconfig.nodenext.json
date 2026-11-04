@@ -5,6 +5,7 @@
     "moduleResolution": "NodeNext"
   },
   "files": [
+    "removed-aliases.ts",
     "contracts.ts",
     "imports.mts",
     "additions.ts",
@@ -17,6 +18,8 @@
     "pipeline-unions.ts",
     "overloaded-results.ts",
     "receiver-composition.ts",
-    "bound-tuple-unions.ts"
+    "bound-tuple-unions.ts",
+    "result.ts",
+    "applyIf.ts"
   ]
 }

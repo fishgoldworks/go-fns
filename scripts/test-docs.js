@@ -1,5 +1,23 @@
 'use strict';
 const { test } = require('node:test');
+
+test('shared README conventions apply to the template and generated README', () => {
+  const check = require('./lib/check-library-readme.cjs');
+  for (const file of ['scripts/README.template.md', 'README.md']) {
+    const markdown = fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8');
+    check(markdown, file);
+    assert.throws(
+      () => check(markdown.replace('Licensed under the [MIT licence](LICENSE.md).', '[MIT](LICENSE.md).'), file),
+      /Licence sentence/
+    );
+    if (file === 'README.md') {
+      assert.throws(
+        () => check(markdown.replace('- **Licence:** [MIT]', '- **Licence:** [{{LICENSE}}]'), file),
+        /project information/
+      );
+    }
+  }
+});
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -167,17 +185,6 @@ test('public declaration tooltips explain calls and link to existing reference e
       }
       seen.add(name);
       signatures++;
-    }
-    if (ts.isModuleDeclaration(node)) {
-      const namespace = checker.getSymbolAtLocation(node.name);
-      for (const symbol of checker.getExportsOfModule(namespace)) {
-        const name = node.name.text + '.' + symbol.name;
-        assert.ok(
-          ts.displayPartsToString(symbol.getDocumentationComment(checker)).length > 30,
-          name + ': missing alias description'
-        );
-        checkLink(symbol.getJsDocTags(checker), name);
-      }
     }
     if (ts.isInterfaceDeclaration(node) && node.name.text === 'ScheduledFunction') {
       for (const member of node.members)

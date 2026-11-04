@@ -14,6 +14,7 @@
     "forceConsistentCasingInFileNames": true
   },
   "files": [
+    "removed-aliases.ts",
     "contracts.ts",
     "additions.ts",
     "cached-and-variadic-results.ts",
@@ -25,6 +26,8 @@
     "pipeline-unions.ts",
     "overloaded-results.ts",
     "receiver-composition.ts",
-    "bound-tuple-unions.ts"
+    "bound-tuple-unions.ts",
+    "result.ts",
+    "applyIf.ts"
   ]
 }

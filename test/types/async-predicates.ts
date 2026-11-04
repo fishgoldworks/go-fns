@@ -1,7 +1,4 @@
 import api, { and, andAsync, not, notAsync, or, orAsync, nor, norAsync, xor, xorAsync } from '../../index';
-import deepNot = require('../../src/logic/not');
-import deepAnd = require('../../src/logic/and');
-import deepOr = require('../../src/logic/or');
 import deepNotAsync = require('../../src/logic/notAsync');
 import deepAndAsync = require('../../src/logic/andAsync');
 import deepOrAsync = require('../../src/logic/orAsync');
@@ -9,19 +6,13 @@ import deepOrAsync = require('../../src/logic/orAsync');
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Assert<T extends true> = T;
 
-// Aliases and deep imports expose the full factory type, including all overloads.
-type NotAlias = Assert<Equal<typeof not.async, typeof notAsync>>;
-type AndAlias = Assert<Equal<typeof and.async, typeof andAsync>>;
-type OrAlias = Assert<Equal<typeof or.async, typeof orAsync>>;
+// Focused imports expose the full factory type, including all overloads.
 type DeepNot = Assert<Equal<typeof deepNotAsync, typeof notAsync>>;
 type DeepAnd = Assert<Equal<typeof deepAndAsync, typeof andAsync>>;
 type DeepOr = Assert<Equal<typeof deepOrAsync, typeof orAsync>>;
-const deepNotAlias: typeof notAsync = deepNot.async;
-const deepAndAlias: typeof andAsync = deepAnd.async;
-const deepOrAlias: typeof orAsync = deepOr.async;
 const defaultNot: typeof notAsync = api.notAsync;
-const defaultAnd: typeof andAsync = api.and.async;
-const defaultOr: typeof orAsync = api.or.async;
+const defaultAnd: typeof andAsync = api.andAsync;
+const defaultOr: typeof orAsync = api.orAsync;
 
 // A plain value, promise, custom thenable or unknown outcome is accepted.
 declare const thenable: PromiseLike<string>;
@@ -258,7 +249,7 @@ negatedTupleUnion(undefined);
 // @ts-expect-error the empty alternative cannot admit arbitrary extra arguments
 negatedTupleUnion('X', 1);
 // @ts-expect-error the nonempty alternative requires a string
-not.async(emptyOrText)(123);
+api.notAsync(emptyOrText)(123);
 
 const andTupleUnion = and(emptyOrText, () => true);
 andTupleUnion();

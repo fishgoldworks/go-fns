@@ -42,4 +42,3 @@ function xor(fns) {
 }
 
 module.exports = xor;
-module.exports.async = require('./xorAsync');

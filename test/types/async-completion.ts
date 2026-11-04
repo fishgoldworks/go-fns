@@ -1,8 +1,4 @@
-import api, { when, whenAsync, ifElse, ifElseAsync, nor, norAsync, xor, xorAsync } from '../../index';
-import deepWhen = require('../../src/when');
-import deepIfElse = require('../../src/ifElse');
-import deepNor = require('../../src/logic/nor');
-import deepXor = require('../../src/logic/xor');
+import api, { whenAsync, ifElseAsync, norAsync, xorAsync } from '../../index';
 import deepWhenAsync = require('../../src/whenAsync');
 import deepIfElseAsync = require('../../src/ifElseAsync');
 import deepNorAsync = require('../../src/logic/norAsync');
@@ -12,22 +8,14 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Assert<T extends true> = T;
 
 // Every entry point retains the full factory contract.
-type WhenAlias = Assert<Equal<typeof when.async, typeof whenAsync>>;
-type IfElseAlias = Assert<Equal<typeof ifElse.async, typeof ifElseAsync>>;
-type NorAlias = Assert<Equal<typeof nor.async, typeof norAsync>>;
-type XorAlias = Assert<Equal<typeof xor.async, typeof xorAsync>>;
 type DeepWhen = Assert<Equal<typeof deepWhenAsync, typeof whenAsync>>;
 type DeepIfElse = Assert<Equal<typeof deepIfElseAsync, typeof ifElseAsync>>;
 type DeepNor = Assert<Equal<typeof deepNorAsync, typeof norAsync>>;
 type DeepXor = Assert<Equal<typeof deepXorAsync, typeof xorAsync>>;
-const deepWhenAlias: typeof whenAsync = deepWhen.async;
-const deepIfElseAlias: typeof ifElseAsync = deepIfElse.async;
-const deepNorAlias: typeof norAsync = deepNor.async;
-const deepXorAlias: typeof xorAsync = deepXor.async;
 const defaultWhen: typeof whenAsync = api.whenAsync;
-const defaultIfElse: typeof ifElseAsync = api.ifElse.async;
+const defaultIfElse: typeof ifElseAsync = api.ifElseAsync;
 const defaultNor: typeof norAsync = api.norAsync;
-const defaultXor: typeof xorAsync = api.xor.async;
+const defaultXor: typeof xorAsync = api.xorAsync;
 
 declare const thenable: PromiseLike<string>;
 declare const unknownResult: unknown;
@@ -407,15 +395,11 @@ type PromisedChoice = Assert<Equal<ReturnType<typeof promisedChoice>, Promise<st
 // @ts-expect-error original arguments reach callbacks before awaiting their returned values
 promisedChoice(1, 'one');
 
-// Default-import named exports and aliases have identical factory types.
+// Default-import named exports retain the full factory types.
 type DefaultWhenNamed = Assert<Equal<typeof api.whenAsync, typeof whenAsync>>;
-type DefaultWhenAlias = Assert<Equal<typeof api.when.async, typeof whenAsync>>;
 type DefaultIfElseNamed = Assert<Equal<typeof api.ifElseAsync, typeof ifElseAsync>>;
-type DefaultIfElseAlias = Assert<Equal<typeof api.ifElse.async, typeof ifElseAsync>>;
 type DefaultNorNamed = Assert<Equal<typeof api.norAsync, typeof norAsync>>;
-type DefaultNorAlias = Assert<Equal<typeof api.nor.async, typeof norAsync>>;
 type DefaultXorNamed = Assert<Equal<typeof api.xorAsync, typeof xorAsync>>;
-type DefaultXorAlias = Assert<Equal<typeof api.xor.async, typeof xorAsync>>;
 
 // A union of call tuples belongs to one callback: only one-argument alternatives are forwarded.
 const zeroOrNumber = (...args: [] | [value: number]) => args.length === 0 || args[0].toFixed() === '1';
@@ -603,13 +587,13 @@ inferredStringWhen(123);
 inferredStringWhen();
 // @ts-expect-error the awaited result is a string, not an unconstrained value
 const inferredStringWrongResult: Promise<number> = inferredStringWhen('hello');
-const inferredAliasWhen = when.async(
+const inferredDefaultWhen = api.whenAsync(
   (value) => value != null,
   (value: string) => value.toUpperCase()
 );
-// @ts-expect-error the attached alias retains the transform's input
-inferredAliasWhen(123);
-type InferredAliasWhen = Assert<Equal<ReturnType<typeof inferredAliasWhen>, Promise<string>>>;
+// @ts-expect-error the default-object export retains the transform's input
+inferredDefaultWhen(123);
+type InferredDefaultWhen = Assert<Equal<ReturnType<typeof inferredDefaultWhen>, Promise<string>>>;
 const inferredNumericWhen = whenAsync(
   (value: number) => value > 0,
   (value) => value + 1
@@ -743,7 +727,7 @@ optionalBranchInput();
 optionalBranchInput(1);
 type OptionalBranchInput = Assert<Equal<ReturnType<typeof optionalBranchInput>, Promise<number | string | undefined>>>;
 
-const inferredWhenEntry0 = when.async(
+const inferredWhenEntry0 = whenAsync(
   (value) => {
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
@@ -765,17 +749,6 @@ const inferredWhenEntry1 = deepWhenAsync(
 );
 inferredWhenEntry1('hello');
 
-const inferredWhenEntry2 = deepWhen.async(
-  (value) => {
-    type PredicateInput = Assert<Equal<typeof value, string>>;
-    // @ts-expect-error all entry points contextually type the predicate body
-    value.toFixed(0);
-    return value.length > 0;
-  },
-  (value: string) => value.toUpperCase()
-);
-inferredWhenEntry2('hello');
-
 const inferredWhenEntry3 = api.whenAsync(
   (value) => {
     type PredicateInput = Assert<Equal<typeof value, string>>;
@@ -787,7 +760,7 @@ const inferredWhenEntry3 = api.whenAsync(
 );
 inferredWhenEntry3('hello');
 
-const inferredChoiceEntry0 = ifElse.async(
+const inferredChoiceEntry0 = ifElseAsync(
   (value) => {
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
@@ -810,18 +783,6 @@ const inferredChoiceEntry1 = deepIfElseAsync(
   (value: string) => value.toLowerCase()
 );
 inferredChoiceEntry1('hello');
-
-const inferredChoiceEntry2 = deepIfElse.async(
-  (value) => {
-    type PredicateInput = Assert<Equal<typeof value, string>>;
-    // @ts-expect-error all entry points contextually type the predicate body
-    value.toFixed(0);
-    return value.length > 0;
-  },
-  (value: string) => value.toUpperCase(),
-  (value: string) => value.toLowerCase()
-);
-inferredChoiceEntry2('hello');
 
 const inferredChoiceEntry3 = api.ifElseAsync(
   (value) => {

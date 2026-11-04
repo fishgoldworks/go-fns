@@ -1,19 +1,22 @@
-"""Run Chromium window, iframe and Worker contracts with a parent-process deadline.
+"""Run real-browser window, iframe, Worker and documented-example contracts.
 
-Requires Python Playwright and Chromium for real browser checks. The supervisor
-and its self-tests use the Python standard library only.
+Requires Python Playwright and its Chromium, Firefox and WebKit browsers. Each
+engine has a parent-process deadline. Supervisor self-tests use the standard library.
 """
 import argparse
 import json
 import math
 import os
+import re
 import shutil
 import signal
 import subprocess
 import sys
 from pathlib import Path
+from html.parser import HTMLParser
 
 BUNDLES = ('go-fns.js', 'go-fns.min.js')
+ENGINES = ('chromium', 'firefox', 'webkit')
 
 
 def positive_timeout(value):
@@ -135,18 +138,118 @@ def supervise(command, timeout):
             job.close()
 
 
-def validate_results(results):
-    if not isinstance(results, list) or len(results) != len(BUNDLES):
-        raise ValueError('Incomplete browser report: expected both bundles.')
-    for expected, result in zip(BUNDLES, results):
-        if not isinstance(result, dict) or result.get('bundle') != expected:
-            raise ValueError('Incomplete browser report: wrong or duplicate bundle.')
+def validate_results(results, engines=ENGINES):
+    # Preserve each worker's bundle/example order in the aggregate report.
+    expected = [entry for engine in engines for entry in
+                [(engine, 'bundle', bundle) for bundle in BUNDLES] + [(engine, 'example', 'README.md')]]
+    if not isinstance(results, list) or len(results) != len(expected):
+        raise ValueError('Incomplete browser report: expected both bundles and README example for every engine.')
+    for (engine, kind, name), result in zip(expected, results):
+        if not isinstance(result, dict) or result.get('engine') != engine or result.get(kind) != name:
+            raise ValueError('Incomplete browser report: wrong or duplicate engine, bundle or example.')
         if result.get('status') != 'passed':
             raise ValueError('Browser checks failed: ' + str(result))
+        if not isinstance(result.get('version'), str) or not result['version'].strip():
+            raise ValueError('Incomplete browser report: missing engine version for ' + engine)
         for field in ('cases', 'assertions'):
             if type(result.get(field)) is not int or result[field] <= 0:
-                raise ValueError('Incomplete browser report: no ' + field + ' for ' + expected)
+                raise ValueError('Incomplete browser report: no ' + field + ' for ' + engine + ': ' + name)
     return results
+
+
+def run_matrix(package_root, chromium, timeout, engines=ENGINES):
+    results = []
+    for engine in engines:
+        command = [sys.executable, str(Path(__file__).resolve()), '--worker', '--engine', engine,
+                   '--package-root', str(package_root.resolve())]
+        if chromium and engine == 'chromium':
+            command += ['--chromium', chromium]
+        report = json.loads(supervise(command, timeout))
+        results.extend(validate_results(report, (engine,)))
+    return validate_results(results, engines)
+
+
+def read_example(package_root):
+    metadata = json.loads((package_root / 'package.json').read_text(encoding='utf-8'))
+    readme = (package_root / 'README.md').read_text(encoding='utf-8')
+    examples = re.findall(r'```html\s*\n([\s\S]*?)```', readme)
+    if len(examples) != 1:
+        raise ValueError('The packaged README must contain one runnable script-tag example.')
+
+    class Scripts(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.sources = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == 'script':
+                self.sources.extend(value for key, value in attrs if key == 'src')
+
+    scripts = Scripts()
+    scripts.feed(examples[0])
+    prefix = 'https://cdn.jsdelivr.net/npm/' + metadata['name'] + '@' + metadata['version'] + '/dist/'
+    allowed = {prefix + name: package_root / 'dist' / name for name in BUNDLES}
+    if len(scripts.sources) != 1 or scripts.sources[0] not in allowed:
+        raise ValueError('The README example must load this candidate\'s exact versioned CDN bundle URL.')
+    bundle_url = scripts.sources[0]
+    expected = []
+
+    def record_result(match):
+        # These compact examples annotate expression statements with JSON values.
+        # Capture the expression's actual value without requiring console output.
+        expected.append(json.loads(match[3]))
+        return match[1] + 'window.__goFnsExampleOutput.push(' + match[2] + ');'
+
+    def record_script(match):
+        script = re.sub(r'^([ \t]*)([^\n]+?);[ \t]+// => ([^\n]+)$', record_result,
+                        match[2], flags=re.MULTILINE)
+        return match[1] + script + match[3]
+
+    html = re.sub(r'(<script>)([\s\S]*?)(</script>)', record_script, examples[0])
+    return {'html': '<!doctype html><html><body>' + html + '</body></html>',
+            'expected': expected, 'bundle_url': bundle_url,
+            'bundle_bytes': allowed[bundle_url].read_bytes()}
+
+
+def check_example(browser, package_root):
+    example = read_example(package_root)
+    page = browser.new_page()
+    errors, unexpected_requests, bundles_loaded = [], [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    address = 'http://go-fns.invalid/documented-example'
+
+    def route_request(route):
+        url = route.request.url
+        if url == address:
+            route.fulfill(body=example['html'], content_type='text/html')
+        elif url == example['bundle_url']:
+            bundles_loaded.append(url)
+            route.fulfill(body=example['bundle_bytes'], content_type='text/javascript')
+        else:
+            unexpected_requests.append(url)
+            route.abort()
+
+    try:
+        # Only this candidate's exact CDN URL is mapped to local bytes. No
+        # public CDN or different package/version can make the example pass.
+        page.route('**/*', route_request)
+        if example['expected'] != [2, [3.1]]:
+            raise AssertionError('README example must retain both documented result assertions.')
+        page.add_init_script('window.__goFnsExampleOutput = [];')
+        page.goto(address, timeout=10000)
+        page.wait_for_function('window.__goFnsExampleOutput.length >= 2', timeout=10000)
+        output = page.evaluate('window.__goFnsExampleOutput')
+        if errors:
+            raise AssertionError('README example browser errors: ' + '; '.join(errors))
+        if unexpected_requests:
+            raise AssertionError('README example requested unexpected URLs: ' + '; '.join(unexpected_requests))
+        if bundles_loaded != [example['bundle_url']]:
+            raise AssertionError('README example did not load exactly one candidate bundle.')
+        if output != example['expected']:
+            raise AssertionError('README example returned unexpected values: ' + repr(output))
+        return {'example': 'README.md', 'status': 'passed', 'cases': 1, 'assertions': 4}
+    finally:
+        page.close()
 
 
 def worker(args):
@@ -154,11 +257,14 @@ def worker(args):
     root = Path(__file__).resolve().parents[1]
     results = []
     with sync_playwright() as p:
-        options = {'headless': True, 'args': ['--no-sandbox']}
-        if args.chromium:
-            options['executable_path'] = args.chromium
-        browser = p.chromium.launch(**options)
-        for name in ['go-fns.js', 'go-fns.min.js']:
+        options = {'headless': True}
+        if args.engine == 'chromium':
+            options['args'] = ['--no-sandbox']
+            if args.chromium:
+                options['executable_path'] = args.chromium
+        browser = getattr(p, args.engine).launch(**options)
+        identity = {'engine': args.engine, 'version': browser.version}
+        for name in BUNDLES:
             page = browser.new_page()
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
@@ -173,11 +279,15 @@ def worker(args):
                 ])''', (args.package_root / 'dist' / name).read_text())
                 if errors:
                     raise AssertionError('Unexpected browser errors: ' + '; '.join(errors))
-                results.append({'bundle': name, 'chromium': browser.version, **result})
+                results.append({**identity, 'bundle': name, **result})
             except Exception as error:
-                results.append({'bundle': name, 'chromium': browser.version, 'status': 'failed', 'error': str(error)})
+                results.append({**identity, 'bundle': name, 'status': 'failed', 'error': str(error)})
             finally:
                 page.close()
+        try:
+            results.append({**identity, **check_example(browser, args.package_root)})
+        except Exception as error:
+            results.append({**identity, 'example': 'README.md', 'status': 'failed', 'error': str(error)})
         browser.close()
     return results
 
@@ -185,21 +295,22 @@ def worker(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--chromium', default=os.environ.get('CHROMIUM_PATH') or shutil.which('chromium') or shutil.which('google-chrome'))
+    parser.add_argument('--engine', choices=ENGINES,
+                        help='Run one engine for diagnosis; release verification requires the default full matrix.')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--package-root', type=Path, default=Path(__file__).resolve().parents[1] / 'package')
     parser.add_argument('--timeout', type=positive_timeout, default=60.0,
-                        help='Whole browser-worker deadline in seconds (default: 60).')
+                        help='Deadline for each engine worker in seconds (default: 60).')
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
         if args.worker:
+            if not args.engine:
+                raise ValueError('A browser worker requires an explicit engine.')
             results = worker(args)
         else:
-            command = [sys.executable, str(Path(__file__).resolve()), '--worker',
-                       '--package-root', str(args.package_root.resolve())]
-            if args.chromium:
-                command += ['--chromium', args.chromium]
-            results = validate_results(json.loads(supervise(command, args.timeout)))
+            results = run_matrix(args.package_root, args.chromium, args.timeout,
+                                 (args.engine,) if args.engine else ENGINES)
     except Exception as error:
         results = [{'status': 'failed', 'error': str(error)}]
     output = json.dumps(results, indent=2)

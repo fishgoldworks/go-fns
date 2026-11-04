@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const api = require('./helpers/api.js');
 const { invalidFunctions } = require('./helpers/values.js');
-suite('2.1 API and aliases', function () {
+suite('standalone function API', function () {
   for (const name of ['pipeAsync', 'attemptResult', 'attemptResultAsync', 'tap', 'tapAsync', 'sleep', 'once']) {
     test(`${name} is exported`, () => assert.equal(typeof api[name], 'function'));
   }
@@ -11,11 +11,22 @@ suite('2.1 API and aliases', function () {
     ['attempt', 'result', 'attemptResult'],
     ['attempt', 'resultAsync', 'attemptResultAsync'],
     ['attemptResult', 'async', 'attemptResultAsync'],
-    ['tap', 'async', 'tapAsync']
+    ['tap', 'async', 'tapAsync'],
+    ['repeat', 'async', 'repeatAsync'],
+    ['and', 'async', 'andAsync'],
+    ['or', 'async', 'orAsync'],
+    ['xor', 'async', 'xorAsync'],
+    ['nor', 'async', 'norAsync'],
+    ['not', 'async', 'notAsync'],
+    ['when', 'async', 'whenAsync'],
+    ['ifElse', 'async', 'ifElseAsync'],
+    ['partial', 'right', 'partialRight']
   ]) {
-    test(`${parent}.${key} is the named export, not a wrapper`, () => {
+    test(`${name} is standalone and ${parent}.${key} is absent`, () => {
       assert.equal(typeof api[name], 'function');
-      assert.equal(api[parent][key], api[name]);
+      assert.equal(Object.hasOwn(api[parent], key), false);
+      assert.equal(key in api[parent], false);
+      assert.equal(api[parent][key], undefined);
     });
   }
   for (const [label, value] of invalidFunctions) {

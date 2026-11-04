@@ -17,6 +17,8 @@ async function fixture(action) {
       'package.json',
       'README.md',
       'docs/API.md',
+      'scripts/README.template.md',
+      'scripts/API.template.md',
       'LICENSE.md',
       'CHANGELOG.md'
     ])
@@ -358,3 +360,63 @@ for (const closeFails of [false, true]) {
     })
   );
 }
+
+test('build excludes reserved experiment directories and preserves their contents', () =>
+  fixture(async (root) => {
+    const experiments = [
+      'src/temp/private.js',
+      'src/.tmp/private.d.ts',
+      'src/util/temp/private.d.ts',
+      'src/util/.tmp/private.js'
+    ];
+    for (const file of experiments) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), 'unpublished experiment');
+    }
+    await build({ root });
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package/package.json'), 'utf8'));
+    for (const file of experiments) {
+      assert.equal(fs.readFileSync(path.join(root, file), 'utf8'), 'unpublished experiment');
+      assert.equal(fs.existsSync(path.join(root, 'package', file)), false, file + ' must not ship');
+      assert.equal(manifest.files.includes(file), false);
+      assert.equal(Object.hasOwn(manifest.exports, './' + file), false);
+    }
+    assert.equal(typeof require(path.join(root, 'package/src/pipe.js')), 'function');
+    assert.ok(manifest.files.includes('src/pipe.js'));
+  }));
+
+test('complete build regenerates consumer documentation from canonical templates', () =>
+  fixture(async (root) => {
+    const expected = ['README.md', 'docs/API.md'].map((file) => fs.readFileSync(path.join(project, file), 'utf8'));
+    for (const file of ['README.md', 'docs/API.md']) fs.writeFileSync(path.join(root, file), 'stale draft');
+    await build({ root });
+    for (const [index, file] of ['README.md', 'docs/API.md'].entries()) {
+      assert.equal(fs.readFileSync(path.join(root, file), 'utf8'), expected[index]);
+      assert.equal(fs.readFileSync(path.join(root, 'package', file), 'utf8'), expected[index]);
+    }
+  }));
+
+test('build supplies isolated callable entries for every public function', () =>
+  fixture(async (root) => {
+    await build({ root });
+    const directory = path.join(root, 'package');
+    const api = require(path.join(directory, 'index.js'));
+    for (const name of Object.keys(api)) {
+      const focused = require(path.join(directory, name + '.js'));
+      assert.equal(focused, api[name], name + ' identity');
+      assert.equal(Object.hasOwn(focused, name), false, 'No named property added to the callable');
+      const result = require('node:child_process').spawnSync(
+        process.execPath,
+        [
+          '-e',
+          "require(process.argv[1]);if(require.cache[require('node:path').join(process.argv[2],'index.js')])process.exit(1);",
+          path.join(directory, name + '.js'),
+          directory
+        ],
+        { encoding: 'utf8' }
+      );
+      assert.equal(result.status, 0, name + ' must load without the root aggregator: ' + result.stderr);
+    }
+    const metadata = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
+    for (const name of Object.keys(api)) assert.ok(metadata.exports['./' + name]);
+  }));

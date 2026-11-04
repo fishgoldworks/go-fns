@@ -4,7 +4,7 @@ var createClock = require('./createClock');
 /**
  * One-timer scheduler shared by debounce and throttle. All state is per wrapper.
  * Call arguments are cleared before callback invocation, so reentrant calls may
- * schedule fresh work safely. Results are updated only on successful completion.
+ * schedule fresh work safely. Cached values update only when a callback returns successfully, including a pending promise.
  */
 function createScheduler(fn, config) {
   var clock = createClock();
@@ -128,7 +128,7 @@ function createScheduler(fn, config) {
     return result;
   }
   /**
-   * Discards pending calls and resets scheduling, retaining the last completed result.
+   * Discards pending calls and resets scheduling, retaining the most recent callback return value.
    * @returns {undefined} `undefined` after discarding scheduled work. Work already started continues.
    * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncecancel | Full API documentation}
    */
@@ -138,7 +138,7 @@ function createScheduler(fn, config) {
     if (task !== undefined && task.handle !== undefined) clearTimeout(task.handle);
   };
   /**
-   * Determines whether a callback invocation is scheduled.
+   * Checks whether a callback invocation is scheduled.
    * @returns {boolean} `true` if a callback invocation is scheduled; otherwise `false`. A leading-only cooldown or an in-flight promise alone returns `false`.
    * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncepending | Full API documentation}
    */
@@ -148,8 +148,8 @@ function createScheduler(fn, config) {
   }
   scheduled.pending = pending;
   /**
-   * Invokes eligible pending work immediately, or returns the last completed result.
-   * @returns {*} The callback result when pending work runs, or the previous result otherwise; `undefined` before any successful completion.
+   * Invokes eligible pending work immediately, or returns the most recent callback return value.
+   * @returns {*} The callback return value when pending work runs, including a pending promise, or the previous value otherwise; `undefined` until the first successful return.
    * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debounceflush | Full API documentation}
    */
   scheduled.flush = function () {

@@ -2,11 +2,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
+const consumerEngines = { node: '>=8.0.0' };
 const consumerFiles = ['index.js', 'index.d.ts', 'README.md', 'docs/API.md', 'CHANGELOG.md', 'LICENSE.md'];
 const bundles = ['dist/go-fns.js', 'dist/go-fns.min.js', 'dist/go-fns.min.js.map'];
 function runtimeFiles(directory = root) {
   function walk(relative) {
     return fs.readdirSync(path.join(directory, relative), { withFileTypes: true }).flatMap((entry) => {
+      if (entry.name === 'temp' || entry.name === '.tmp') return [];
       const file = relative + '/' + entry.name;
       if (entry.isSymbolicLink()) throw Error('Runtime source must not be a symbolic link: ' + file);
       return entry.isDirectory() ? walk(file) : /\.(?:js|d\.ts)$/.test(file) ? [file] : [];
@@ -14,8 +16,60 @@ function runtimeFiles(directory = root) {
   }
   return walk('src').sort();
 }
+function functionEntries(directory = root) {
+  const api = require(path.join(directory, 'index.js'));
+  const sources = runtimeFiles(directory).filter((file) => file.endsWith('.js'));
+  return Object.entries(api)
+    .filter(([, value]) => typeof value === 'function')
+    .map(([name, value]) => {
+      const source = sources.find(
+        (file) => path.basename(file) === name + '.js' && require(path.join(directory, file)) === value
+      );
+      if (!source) throw Error('Missing public function implementation: ' + name);
+      return { name, source };
+    });
+}
+function functionFiles(directory = root) {
+  return functionEntries(directory).flatMap(({ name }) =>
+    ['.js', '.mjs', '.d.ts', '.d.cts', '.d.mts'].map((ext) => name + ext)
+  );
+}
+function functionContents(directory = root) {
+  return Object.fromEntries(
+    functionEntries(directory).flatMap(({ name, source }) => {
+      const common = 'declare const ' + name + ": typeof import('./index')." + name + ';\nexport = ' + name + ';\n';
+      return [
+        [name + '.js', "'use strict';\nmodule.exports = require('./" + source + "');\n"],
+        [
+          name + '.mjs',
+          'import ' + name + " from './" + name + ".js';\nexport { " + name + ' };\nexport default ' + name + ';\n'
+        ],
+        [name + '.d.ts', common],
+        [name + '.d.cts', common],
+        [
+          name + '.d.mts',
+          'import { ' + name + " } from './index.js';\nexport { " + name + ' };\nexport default ' + name + ';\n'
+        ]
+      ];
+    })
+  );
+}
+function writeFunctionEntries(directory, sourceRoot = root, fsOps = fs) {
+  for (const [file, content] of Object.entries(functionContents(sourceRoot)))
+    fsOps.writeFileSync(path.join(directory, file), content);
+}
+function functionTarget(name) {
+  return [
+    {
+      types: { import: './' + name + '.d.mts', require: './' + name + '.d.cts', default: './' + name + '.d.ts' },
+      import: './' + name + '.mjs',
+      default: './' + name + '.js'
+    },
+    './' + name + '.js'
+  ];
+}
 function inventory(directory = root) {
-  return [...consumerFiles, ...runtimeFiles(directory), ...bundles, 'package.json'].sort();
+  return [...consumerFiles, ...runtimeFiles(directory), ...functionFiles(directory), ...bundles, 'package.json'].sort();
 }
 function consumerManifest(directory = root) {
   const metadata = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
@@ -32,7 +86,6 @@ function consumerManifest(directory = root) {
     'repository',
     'bugs',
     'funding',
-    'engines',
     'dependencies',
     'peerDependencies',
     'optionalDependencies'
@@ -55,7 +108,9 @@ function consumerManifest(directory = root) {
       if (file.endsWith('.js')) exports[target.slice(0, -3)] = target;
     }
   }
+  for (const { name } of functionEntries(directory)) exports['./' + name] = functionTarget(name);
   Object.assign(manifest, {
+    engines: consumerEngines,
     type: 'commonjs',
     main: './index.js',
     types: './index.d.ts',
@@ -120,6 +175,11 @@ module.exports = {
   bundles,
   runtimeFiles,
   inventory,
+  functionEntries,
+  functionFiles,
+  functionContents,
+  writeFunctionEntries,
+  consumerEngines,
   consumerManifest,
   artifactPath
 };

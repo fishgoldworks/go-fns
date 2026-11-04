@@ -1,8 +1,22 @@
 'use strict';
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { spawn, spawnSync } = require('node:child_process');
 // Node flags must precede the runner path to support filters and coverage options.
 const flags = process.argv.slice(2);
+if (flags.includes('--experimental-test-coverage')) {
+  const reporters = flags.filter((flag) => /^--test[-_]reporter(?:=|$)/.test(flag)).length;
+  const destinations = flags.filter((flag) => /^--test[-_]reporter[-_]destination(?:=|$)/.test(flag)).length;
+  // Node supplies one default reporter/destination; make these explicit before
+  // adding our silent inventory reporter. Invalid caller pairs still fail in Node.
+  if (!reporters && !destinations) {
+    const modernDefault = Number(process.versions.node.split('.')[0]) >= 23;
+    flags.push('--test-reporter=' + (modernDefault || process.stdout.isTTY ? 'spec' : 'tap'));
+  }
+  if (!destinations && reporters <= 1) flags.push('--test-reporter-destination=stdout');
+  flags.push('--test-reporter=' + pathToFileURL(path.join(__dirname, 'native-coverage-reporter.js')).href);
+  flags.push('--test-reporter-destination=stdout');
+}
 const env = {
   ...process.env,
   GO_FNS_CHECK_NATIVE_COVERAGE: flags.includes('--experimental-test-coverage') ? '1' : undefined

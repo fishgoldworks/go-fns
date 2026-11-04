@@ -20,7 +20,7 @@ function render(reference) {
   };
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Go Functions API reference</title>
+<title>Go Functions API</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#17202a}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd4dc;padding:.6rem;text-align:left;vertical-align:top}pre{padding:1rem;overflow:auto;background:#f5f7fa}code{font-family:ui-monospace,monospace}a{color:#075bb5}h2,h3,h4{scroll-margin-top:1rem}</style>
 </head><body><main>${markdown.render(reference)}</main></body></html>
 `;

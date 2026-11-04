@@ -4,10 +4,12 @@ import os
 import subprocess
 import tempfile
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import time
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('browser_driver', Path(__file__).with_name('test-browser.py'))
 driver = importlib.util.module_from_spec(spec)
@@ -79,8 +81,15 @@ class SupervisorTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(Exception):
                 driver.positive_timeout(value)
 
-    def valid(self):
-        return [{'bundle': name, 'status': 'passed', 'cases': 1, 'assertions': 2} for name in driver.BUNDLES]
+    def valid(self, engines=('chromium', 'firefox', 'webkit')):
+        results = []
+        for engine in engines:
+            for bundle in ['go-fns.js', 'go-fns.min.js']:
+                results.append({'engine': engine, 'version': '123.4', 'bundle': bundle,
+                                'status': 'passed', 'cases': 1, 'assertions': 2})
+            results.append({'engine': engine, 'version': '123.4', 'example': 'README.md',
+                            'status': 'passed', 'cases': 1, 'assertions': 4})
+        return results
 
     def test_validates_complete_results(self):
         self.assertEqual(driver.validate_results(self.valid()), self.valid())
@@ -106,6 +115,101 @@ class SupervisorTests(unittest.TestCase):
         data = self.valid();data[1]['status']='failed';data[1]['error']='sentinel'
         with self.assertRaisesRegex(ValueError,'sentinel'):
             driver.validate_results(data)
+
+    def test_rejects_missing_engine_and_documented_example(self):
+        for data in [self.valid(('chromium',))[:2], self.valid(('chromium',)), self.valid()[:6],
+                     [row for row in self.valid() if 'example' not in row]]:
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                driver.validate_results(data)
+
+    def test_rejects_mislabeled_engine_or_missing_version(self):
+        for field, value in [('engine', 'chromium'), ('version', ''), ('version', None)]:
+            data = self.valid()
+            data[3][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                driver.validate_results(data)
+
+    def test_rejects_incomplete_example(self):
+        for field, value in [('status', 'failed'), ('cases', 0), ('assertions', 0), ('example', 'other')]:
+            data = self.valid()
+            data[2][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                driver.validate_results(data)
+
+    def test_default_run_requires_three_completed_engines(self):
+        def completed(command, timeout):
+            engine = command[command.index('--engine') + 1]
+            return json.dumps(self.valid((engine,)))
+        with patch.object(driver, 'supervise', side_effect=completed):
+            self.assertEqual(driver.run_matrix(Path('candidate'), None, 60), self.valid())
+
+    def test_unavailable_engine_is_a_release_failure(self):
+        def unavailable(command, timeout):
+            engine = command[command.index('--engine') + 1]
+            if engine == 'firefox':
+                raise RuntimeError('Firefox executable missing')
+            return json.dumps(self.valid((engine,)))
+        with patch.object(driver, 'supervise', side_effect=unavailable):
+            with self.assertRaisesRegex(RuntimeError, 'Firefox executable missing'):
+                driver.run_matrix(Path('candidate'), None, 60)
+
+    def test_worker_cannot_claim_another_engine_or_omit_example(self):
+        for rows in [self.valid(('firefox',)), self.valid(('chromium',))[:2]]:
+            with patch.object(driver, 'supervise', return_value=json.dumps(rows)):
+                with self.subTest(rows=rows), self.assertRaises(ValueError):
+                    driver.run_matrix(Path('candidate'), None, 60)
+
+    def test_chromium_override_does_not_replace_other_engines(self):
+        def completed(command, timeout):
+            engine = command[command.index('--engine') + 1]
+            self.assertEqual(timeout, 7.5)
+            self.assertEqual(command[command.index('--package-root') + 1], str(Path('candidate').resolve()))
+            if engine == 'chromium':
+                self.assertEqual(command[command.index('--chromium') + 1], 'custom-chromium')
+            else:
+                self.assertNotIn('--chromium', command)
+            return json.dumps(self.valid((engine,)))
+        with patch.object(driver, 'supervise', side_effect=completed):
+            self.assertEqual(driver.run_matrix(Path('candidate'), 'custom-chromium', 7.5), self.valid())
+
+    def test_diagnostic_engine_still_requires_both_bundles_and_example(self):
+        with patch.object(driver, 'supervise', return_value=json.dumps(self.valid(('webkit',)))):
+            self.assertEqual(driver.run_matrix(Path('candidate'), None, 60, ('webkit',)), self.valid(('webkit',)))
+
+
+class DocumentedExampleTests(unittest.TestCase):
+    def read_example(self, url, inline='console.log(2);'):
+        with tempfile.TemporaryDirectory(prefix='go-fns-browser-example-') as directory:
+            root = Path(directory)
+            (root / 'dist').mkdir()
+            (root / 'dist/go-fns.min.js').write_bytes(b'candidate bytes')
+            (root / 'package.json').write_text(json.dumps({'name': 'go-fns', 'version': '2.0.0'}))
+            (root / 'README.md').write_text(
+                '```html\n<script src="' + url + '"></script>\n<script>' + inline + '</script>\n```')
+            return driver.read_example(root)
+
+    def test_loads_only_own_exact_versioned_candidate_bytes(self):
+        example = self.read_example('https://cdn.jsdelivr.net/npm/go-fns@2.0.0/dist/go-fns.min.js')
+        self.assertEqual(example['bundle_url'],
+                         'https://cdn.jsdelivr.net/npm/go-fns@2.0.0/dist/go-fns.min.js')
+        self.assertEqual(example['bundle_bytes'], b'candidate bytes')
+        self.assertIn('<script>console.log(2);</script>', example['html'])
+
+    def test_captures_annotated_expression_results_without_console_output(self):
+        example = self.read_example('https://cdn.jsdelivr.net/npm/go-fns@2.0.0/dist/go-fns.min.js',
+                                    inline='2;  // => 2\n[3.1];  // => [3.1]')
+        self.assertEqual(example['expected'], [2, [3.1]])
+        self.assertIn('window.__goFnsExampleOutput.push(2);', example['html'])
+        self.assertIn('window.__goFnsExampleOutput.push([3.1]);', example['html'])
+
+    def test_rejects_other_versions_packages_hosts_and_paths(self):
+        for url in ['https://cdn.jsdelivr.net/npm/go-fns@1.0.0/dist/go-fns.min.js',
+                    'https://cdn.jsdelivr.net/npm/other@2.0.0/dist/go-fns.min.js',
+                    'https://example.com/npm/go-fns@2.0.0/dist/go-fns.min.js',
+                    'https://cdn.jsdelivr.net/npm/go-fns@2.0.0/../dist/go-fns.min.js',
+                    'https://cdn.jsdelivr.net/npm/go-fns@2.0.0/dist/go-fns.min.js?version=1']:
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                self.read_example(url)
 
 
 if __name__ == '__main__':

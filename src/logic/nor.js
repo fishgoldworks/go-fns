@@ -37,4 +37,3 @@ function nor(fns) {
 }
 
 module.exports = nor;
-module.exports.async = require('./norAsync');

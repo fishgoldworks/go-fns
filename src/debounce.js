@@ -17,8 +17,8 @@ var createScheduler = require('./util/createScheduler');
  * @param {boolean} [options.trailing] Whether to invoke after calls stop; defaults to `true`.
  * @param {number} [options.maxWait] Optional finite duration in the supported range, at least
  * `milliseconds`, that caps postponement.
- * @returns {Function} A scheduled wrapper returning the last completed callback result, or
- * `undefined` before one exists. Returned promises are not awaited.
+ * @returns {Function} A scheduled wrapper returning the most recent callback return value, including a pending promise, or
+ * `undefined` until the first successful return. Returned promises are not awaited.
  * @throws {TypeError} If callback, duration or option types are invalid.
  * @throws {RangeError} If a duration is outside its supported range. Immediate callback
  * errors propagate; timer callback errors go to the host.

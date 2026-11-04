@@ -31,4 +31,3 @@ function when(predicate, transform) {
   };
 }
 module.exports = when;
-module.exports.async = require('./whenAsync');

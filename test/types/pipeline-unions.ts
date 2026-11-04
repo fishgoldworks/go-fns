@@ -1,4 +1,5 @@
 import { pipe, pipeAsync } from '../../index';
+import pipeAsyncDeep = require('../../src/pipeAsync');
 
 const incompatible = Math.random() > 0.5 ? (n: number) => n.toFixed() : (s: string) => s.toUpperCase();
 {
@@ -34,18 +35,18 @@ const incompatible = Math.random() > 0.5 ? (n: number) => n.toFixed() : (s: stri
   surrounded(1);
 }
 {
-  const single = pipe.async(incompatible);
+  const single = pipeAsyncDeep(incompatible);
   // @ts-expect-error the string alternative cannot receive a number
   single(1);
   // @ts-expect-error the numeric alternative cannot receive a string
   single('x');
-  const leading = pipe.async(null, undefined, incompatible);
+  const leading = pipeAsyncDeep(null, undefined, incompatible);
   // @ts-expect-error leading gaps cannot erase an input alternative
   leading(1);
-  const trailing = pipe.async(incompatible, null, undefined);
+  const trailing = pipeAsyncDeep(incompatible, null, undefined);
   // @ts-expect-error trailing gaps cannot erase an input alternative
   trailing(1);
-  const surrounded = pipe.async(null, incompatible, undefined);
+  const surrounded = pipeAsyncDeep(null, incompatible, undefined);
   // @ts-expect-error gaps on both sides cannot erase an input alternative
   surrounded(1);
 }

@@ -48,20 +48,3 @@ function repeat(fn, count, ...args) {
 Object.defineProperty(repeat, 'length', { value: 3 });
 
 module.exports = repeat;
-/**
- * Invokes a callback a specified number of times sequentially, awaiting each result. Alias of
- * `repeatAsync`.
- * Each call receives the same arguments with the callback itself as its receiver; no index is
- * added. Nullish counts mean zero. A throw or rejection stops later calls; completed work is
- * not undone.
- * Rejects with `TypeError` for an invalid callback or non-nullish non-number count,
- * `RangeError` for an unsupported count, or the original callback failure.
- * @param {Function} fn Required callback.
- * @param {number|null} [count=0] Integer from 0 through 4294967295; omitted, `null` or
- * `undefined` means zero.
- * @param {...*} args Arguments passed to the callback.
- * @returns {Promise<Array>} A promise resolving to a fresh array of awaited results in
- * invocation order; an empty array for a zero or nullish count.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
- */
-module.exports.async = require('./repeatAsync');

@@ -34,10 +34,6 @@ suite('async conditional composition', function () {
     suite(name, function () {
       const isWhen = name === 'whenAsync';
       const arity = isWhen ? 2 : 3;
-      test('is exported as the exact-reference async alias', function () {
-        assert.equal(typeof api[name], 'function');
-        assert.equal(api[isWhen ? 'when' : 'ifElse'].async, api[name]);
-      });
       test('constructs fresh wrappers synchronously without invoking callbacks', function () {
         let calls = 0;
         const callback = () => ++calls;

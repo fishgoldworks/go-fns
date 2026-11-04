@@ -16,10 +16,6 @@ suite('async NOR and exactly-one XOR', function () {
   for (const name of ['norAsync', 'xorAsync']) {
     suite(name, function () {
       const isNor = name === 'norAsync';
-      test('is exported as the exact-reference async alias', function () {
-        assert.equal(typeof api[name], 'function');
-        assert.equal(api[isNor ? 'nor' : 'xor'].async, api[name]);
-      });
       test('constructs fresh wrappers synchronously without invoking callbacks', function () {
         let calls = 0;
         const fn = () => ++calls;

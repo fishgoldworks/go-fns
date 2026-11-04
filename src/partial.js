@@ -37,18 +37,3 @@ function partial(fn, ...saved) {
   };
 }
 module.exports = partial;
-/**
- * Creates a function that appends saved arguments to each call without binding its receiver.
- * Alias of `partialRight`.
- * The returned function forwards its caller's `this` to the callback and returns promises
- * unchanged. Saved values are retained by reference. Omitted inputs are not padded; supply
- * optional prefix positions explicitly when needed to keep saved arguments in place.
- * @param {Function} fn Required callback.
- * @param {...*} saved Arguments saved after the arguments supplied on each later call.
- * @returns {Function} A wrapper returning the callback result after appending the saved
- * arguments.
- * @throws {TypeError} If a required callback is not a function. Errors from later callback
- * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#partialrightfn-args | Full API documentation}
- */
-module.exports.right = require('./partialRight');

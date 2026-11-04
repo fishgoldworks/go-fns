@@ -3,8 +3,7 @@
 var normalizeFunctions = require('../util/normalizeFunctions');
 
 /**
- * Creates an async predicate that awaits each callback in order and accepts any truthy
- * result. Stops at the first truthy result. Nullish predicates are skipped; an empty list
+ * Creates a predicate that awaits results in order and determines whether any is truthy. Stops at the first truthy result. Nullish predicates are skipped; an empty list
  * resolves to `false`. All configuration is validated synchronously without invoking
  * callbacks. Each invocation starts the first callback immediately and awaits its result
  * before calling the next, even when the result is synchronous. Every callback receives

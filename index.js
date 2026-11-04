@@ -25,12 +25,14 @@ module.exports.attemptResultAsync = require('./src/attemptResultAsync');
 module.exports.tap = require('./src/tap');
 module.exports.tapAsync = require('./src/tapAsync');
 module.exports.sleep = require('./src/sleep');
+module.exports.result = require('./src/result');
 module.exports.once = require('./src/once');
 
 module.exports.partial = require('./src/partial');
 module.exports.partialRight = require('./src/partialRight');
 module.exports.unary = require('./src/unary');
 module.exports.when = require('./src/when');
+module.exports.applyIf = require('./src/applyIf');
 module.exports.ifElse = require('./src/ifElse');
 module.exports.repeatAsync = require('./src/repeatAsync');
 module.exports.debounce = require('./src/debounce');

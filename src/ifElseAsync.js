@@ -4,7 +4,7 @@ var expectFunction = require('./util/expectFunction');
 var apply = Reflect.apply;
 
 /**
- * Creates an async function that awaits a predicate once and invokes only the matching branch.
+ * Creates a function that awaits a predicate and runs only the matching branch.
  * Construction validates all three callbacks synchronously without invoking them. Each call
  * starts the predicate immediately and awaits its result before invoking the selected branch,
  * even when the predicate result is synchronous. Every callback receives all original call

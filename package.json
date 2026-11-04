@@ -31,9 +31,6 @@
   "bugs": {
     "url": "https://github.com/koyote130708/go-fns/issues"
   },
-  "engines": {
-    "node": ">=8.0.0"
-  },
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
@@ -47,7 +44,7 @@
     "format:check": "prettier . --check",
     "test": "node scripts/test.js",
     "test:docs": "node scripts/docs.js --check && node --test scripts/test-docs.js scripts/test-docs-html.js && node scripts/run-tests.js test/documentation.test.js",
-    "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.browser.json && tsc -p test/types/tsconfig.nodenext.json",
+    "test:types": "node scripts/test-types.js",
     "test:build": "node --test scripts/test-build.js",
     "test:tooling": "node --test scripts/test-tooling.js scripts/test-verify.js scripts/test-runner.js scripts/test-test-output.js",
     "test:artifacts": "node scripts/test-artifacts.js",
@@ -56,7 +53,7 @@
     "test:browser": "python scripts/test-browser-driver.py && python scripts/test-browser.py",
     "test:browser-driver": "python scripts/test-browser-driver.py",
     "coverage": "c8 --clean npm test",
-    "coverage:native": "npm test -- --experimental-test-coverage --test-coverage-include=\"index.js\" --test-coverage-include=\"src/**/*.js\" --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
+    "coverage:native": "npm test -- --experimental-test-coverage --test-coverage-include=\"index.js\" --test-coverage-include=\"src/**/*.js\" --test-coverage-exclude=\"src/**/temp/**\" --test-coverage-exclude=\"src/**/.tmp/**\" --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
     "verify": "node scripts/check-dev-node.js && node scripts/verify.js",
     "verify:all": "node scripts/verify.js --browser",
     "verify:native": "node scripts/verify.js --native",
@@ -69,14 +66,20 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "c8": "7.12.0",
+    "c8": "12.0.0",
     "eslint": "10.11.0",
     "globals": "17.12.0",
-    "markdown-it": "15.0.2",
+    "markdown-it": "15.0.3",
     "prettier": "3.9.6",
     "terser": "5.51.2",
     "typescript": "5.8.3",
     "typescript-eslint": "8.70.1",
     "webpack": "5.111.1"
+  },
+  "overrides": {
+    "minimatch@<11.0.1": "11.0.4",
+    "test-exclude": {
+      "glob": "14.0.3"
+    }
   }
 }

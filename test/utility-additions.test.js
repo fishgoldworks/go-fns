@@ -8,11 +8,6 @@ suite('2.2 argument adapters and conditional composition', function () {
   for (const name of ['partial', 'partialRight', 'unary', 'when', 'ifElse', 'repeatAsync', 'debounce', 'throttle']) {
     test(`${name} is an exported function`, () => assert.equal(typeof api[name], 'function'));
   }
-  test('attached variants are identical functions', () => {
-    assert.equal(typeof api.partialRight, 'function');
-    assert.equal(api.partial.right, api.partialRight);
-    assert.equal(api.repeat.async, api.repeatAsync);
-  });
   for (const name of ['partial', 'partialRight', 'unary']) {
     for (const [label, value] of invalidFunctions) {
       test(`${name} rejects ${label} callback`, () => assert.throws(() => api[name](value), TypeError));

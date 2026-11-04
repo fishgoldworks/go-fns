@@ -37,18 +37,3 @@ function or(fns) {
 }
 
 module.exports = or;
-/**
- * Creates an async predicate that awaits callbacks sequentially and accepts any truthy
- * result. Alias of `orAsync`. Stops at the first truthy result. Every callback receives all
- * original call arguments and the caller's `this`; input arguments are never awaited.
- * Construction validates all entries synchronously without invoking callbacks.
- * @param {...(Function|null|undefined)} fns Synchronous or asynchronous predicates in call
- * order; `null` and `undefined` entries are skipped.
- * @returns {Function} An async predicate resolving to `true` if any awaited callback result
- * is truthy; otherwise `false`. An empty list resolves to `false`. Callback throws and
- * rejections stop evaluation and reject with the original value.
- * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
- * @since 2.0.0
- */
-module.exports.async = require('./orAsync');

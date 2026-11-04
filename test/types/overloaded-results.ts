@@ -1,4 +1,4 @@
-import { pipe, pipeAsync, partialRight, partial } from '../../index';
+import { pipe, pipeAsync, partialRight } from '../../index';
 
 declare function convert(value: string): number;
 declare function convert(value: number): string;
@@ -12,11 +12,9 @@ pipe(() => 'text', null, convert);
 // @ts-expect-error the async result would also be typed incorrectly
 pipeAsync(() => 'text', convert);
 // @ts-expect-error sparse async pipelines must obey the same captured signature
-pipe.async(() => 'text', undefined, convert);
+pipeAsync(() => 'text', undefined, convert);
 // @ts-expect-error binding a string selects an overload with a different result
 partialRight(convert, 'text');
-// @ts-expect-error alias must preserve the same captured signature
-partial.right(convert, 'text');
 declare const tail: (typeof convert)[];
 // @ts-expect-error every dynamic stage iteration must use its captured input/output pair
 pipe(() => 'text', ...tail);

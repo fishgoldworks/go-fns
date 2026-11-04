@@ -15,8 +15,8 @@ var createScheduler = require('./util/createScheduler');
  * to `true`.
  * @param {boolean} [options.trailing] Whether to invoke the latest pending call at the end;
  * defaults to `true`.
- * @returns {Function} A scheduled wrapper returning the last completed callback result, or
- * `undefined` before one exists. Returned promises are not awaited.
+ * @returns {Function} A scheduled wrapper returning the most recent callback return value, including a pending promise, or
+ * `undefined` until the first successful return. Returned promises are not awaited.
  * @throws {TypeError} If callback, duration or option types are invalid.
  * @throws {RangeError} If the duration is outside its supported range. Immediate callback
  * errors propagate; timer callback errors go to the host.

@@ -21,10 +21,6 @@ function truth(name, value) {
 suite('async predicates', function () {
   for (const name of names) {
     suite(name, function () {
-      test('is exported as the exact-reference async alias', function () {
-        assert.equal(typeof api[name], 'function');
-        assert.equal(api[name.slice(0, -5)].async, api[name]);
-      });
       test('constructs synchronously without invoking callbacks', function () {
         let calls = 0;
         const wrapper = api[name](() => {

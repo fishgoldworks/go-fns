@@ -30,16 +30,3 @@ function not(fn) {
 }
 
 module.exports = not;
-/**
- * Creates an async predicate that negates its callback's awaited truthiness. Alias of
- * `notAsync`. Forwards all original call arguments and the caller's `this`; input arguments
- * are never awaited. Construction validates synchronously without invoking the callback.
- * @param {Function} fn Required synchronous or asynchronous predicate; missing or nullish
- * values are invalid.
- * @returns {Function} An async predicate resolving to the negated awaited truthiness.
- * Callback throws and rejections reject with the original value.
- * @throws {TypeError} If the required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notasyncfn | Full API documentation}
- * @since 2.0.0
- */
-module.exports.async = require('./notAsync');

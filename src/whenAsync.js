@@ -4,7 +4,7 @@ var expectFunction = require('./util/expectFunction');
 var apply = Reflect.apply;
 
 /**
- * Creates an async function that transforms one value when the awaited predicate is truthy.
+ * Creates a function that awaits a predicate and conditionally transforms one input.
  * Construction validates both callbacks synchronously without invoking them. Each call
  * starts the predicate immediately and awaits it once before invoking the transform, even
  * for a synchronous predicate result. Both callbacks receive exactly one original input
@@ -21,9 +21,9 @@ var apply = Reflect.apply;
  * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
  * @example
  * const makePositive = whenAsync(async value => value < 0, async value => -value);
- * await makePositive(-3);        // => 3
- * await makePositive(2);         // => 2
- * await whenAsync(() => false, value => value)(Promise.resolve(4)); // => 4
+ * await makePositive(-3);                                            // => 3
+ * await makePositive(2);                                             // => 2
+ * await whenAsync(() => false, value => value)(Promise.resolve(4));  // => 4
  * @since 2.0.0
  * @static
  * @memberof Utility

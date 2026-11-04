@@ -69,7 +69,26 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         const api = host.Functions,
           value = {},
           receiver = {};
-        equal(Object.keys(api).length, 32);
+        equal(Object.keys(api).length, 34);
+        equal(
+          api.applyIf(value, false, () => {
+            throw Error('Skipped transform');
+          }),
+          value
+        );
+        equal(
+          api.applyIf(
+            value,
+            () => 1,
+            (input) => input
+          ),
+          value
+        );
+        equal(api.result(value), value);
+        equal(
+          api.result((x) => x, value),
+          value
+        );
         equal(api.pipe((x) => x)(value), value);
         equal(
           api.when(
@@ -152,11 +171,138 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       }
     });
   }
-  await test('all thirty-two public exports', () =>
+  await test('all thirty-four public exports', () =>
     equal(
       Object.keys(f).sort().join(','),
-      'and,andAsync,attempt,attemptResult,attemptResultAsync,debounce,delay,ifElse,ifElseAsync,nor,norAsync,not,notAsync,once,or,orAsync,partial,partialRight,pipe,pipeAsync,repeat,repeatAsync,sleep,spread,tap,tapAsync,throttle,unary,when,whenAsync,xor,xorAsync'
+      'and,andAsync,applyIf,attempt,attemptResult,attemptResultAsync,debounce,delay,ifElse,ifElseAsync,nor,norAsync,not,notAsync,once,or,orAsync,partial,partialRight,pipe,pipeAsync,repeat,repeatAsync,result,sleep,spread,tap,tapAsync,throttle,unary,when,whenAsync,xor,xorAsync'
     ));
+  await test('applyIf uses truthiness, preserves host values and forwards callback receivers', () => {
+    const value = {},
+      receiver = {},
+      promise = Promise.resolve(false);
+    equal(f.applyIf('42', true, Number), 42);
+    equal(
+      f.applyIf(value, false, () => {
+        throw Error('Skipped transform');
+      }),
+      value
+    );
+    equal(
+      f.applyIf(
+        value,
+        () => document.all,
+        () => {
+          throw Error('Falsy host value');
+        }
+      ),
+      value
+    );
+    equal(
+      f.applyIf(
+        value,
+        () => promise,
+        () => promise
+      ),
+      promise
+    );
+    let calls = 0;
+    equal(
+      f.applyIf.call(
+        receiver,
+        value,
+        function (input) {
+          calls++;
+          equal(this, receiver);
+          equal(arguments.length, 1);
+          equal(input, value);
+          return {};
+        },
+        function (input) {
+          calls++;
+          equal(this, receiver);
+          equal(arguments.length, 1);
+          return input;
+        }
+      ),
+      value
+    );
+    equal(calls, 2);
+    throwsType(() => f.applyIf(value, undefined, () => value));
+    throwsType(() => f.applyIf(value, document.all, () => value));
+    throwsType(() =>
+      f.applyIf(
+        value,
+        () => {
+          throw Error('Predicate must not run');
+        },
+        null
+      )
+    );
+  });
+  await test('result preserves values, DOM host values, promises and callback identity', () => {
+    const value = {},
+      promise = Promise.resolve(2),
+      error = {};
+    equal(f.result(value), value);
+    equal(f.result(document.all), document.all);
+    equal(f.result(promise), promise);
+    let calls = 0;
+    equal(
+      f.result.call(
+        value,
+        function (a, b) {
+          calls++;
+          equal(this, undefined);
+          equal(arguments.length, 2);
+          equal(a, value);
+          equal(b, undefined);
+          return promise;
+        },
+        value,
+        undefined
+      ),
+      promise
+    );
+    equal(calls, 1);
+    const inner = () => {
+      throw Error('Unexpected recursion');
+    };
+    equal(
+      f.result(() => inner),
+      inner
+    );
+    const thenable = Object.defineProperty({}, 'then', {
+      get() {
+        throw Error('Unexpected assimilation');
+      }
+    });
+    equal(
+      f.result(() => thenable),
+      thenable
+    );
+    let caught;
+    try {
+      f.result(() => {
+        throw error;
+      });
+    } catch (failure) {
+      caught = failure;
+    }
+    equal(caught, error);
+  });
+  await test('sleep rejects when an earlier native listener suppresses its abort event', async () => {
+    const controller = new AbortController(),
+      reason = {};
+    const block = (event) => event.stopImmediatePropagation();
+    controller.signal.addEventListener('abort', block);
+    try {
+      const pending = f.sleep(0, { signal: controller.signal });
+      controller.abort(reason);
+      await rejectsExact(pending, reason);
+    } finally {
+      controller.signal.removeEventListener('abort', block);
+    }
+  });
   for (const name of ['and', 'or', 'nor', 'xor']) {
     for (let size = 0; size <= 6; size++) {
       for (let bits = 0; bits < 2 ** size; bits++) {
@@ -324,9 +470,9 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     try {
       for (const value of [false, true, document.all]) {
         const promise = frame.contentWindow.Promise.resolve(value);
-        equal(await f.not.async(() => promise)(), !value);
-        equal(await f.and.async(() => promise)(), !!value);
-        equal(await f.or.async(() => promise)(), !!value);
+        equal(await f.notAsync(() => promise)(), !value);
+        equal(await f.andAsync(() => promise)(), !!value);
+        equal(await f.orAsync(() => promise)(), !!value);
       }
     } finally {
       frame.remove();
@@ -423,7 +569,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       release(false);
       equal(await pending, 'false branch');
       equal(calls, 2);
-      const transform = f.when.async(
+      const transform = f.whenAsync(
         function (value) {
           equal(value, input);
           equal(this, receiver);
@@ -450,7 +596,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         3
       );
       equal(
-        await f.ifElse.async(
+        await f.ifElseAsync(
           () => document.all,
           () => 'wrong',
           () => 'right'
@@ -529,11 +675,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       try {
         const api = self.Functions;
         for (const name of ['not', 'and', 'or', 'when', 'ifElse', 'nor', 'xor']) {
-          if (api[name].async !== api[name + 'Async']) throw Error('Worker alias identity: ' + name);
+          if (Object.prototype.hasOwnProperty.call(api[name], 'async') || typeof api[name + 'Async'] !== 'function')
+            throw Error('Worker standalone export: ' + name);
         }
         if (
           !(await api.notAsync(() => Promise.resolve(false))()) ||
-          !(await api.and.async(
+          !(await api.andAsync(
             () => true,
             () => Promise.resolve(true)
           )()) ||
@@ -549,13 +696,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             async () => true,
             (value) => value + 1
           )(2)) !== 3 ||
-          (await api.ifElse.async(
+          (await api.ifElseAsync(
             async () => false,
             () => 0,
             () => 1
           )()) !== 1 ||
           !(await api.norAsync(async () => false)()) ||
-          !(await api.xor.async(
+          !(await api.xorAsync(
             async () => false,
             () => true
           )())
@@ -676,7 +823,10 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     ['attemptResult', 'async', 'attemptResultAsync'],
     ['tap', 'async', 'tapAsync']
   ]) {
-    await test(`${parent}.${property} exact alias`, () => equal(f[parent][property], f[name]));
+    await test(`${parent}.${property} removed attachment`, () => {
+      equal(Object.prototype.hasOwnProperty.call(f[parent], property), false);
+      equal(typeof f[name], 'function');
+    });
   }
   const resultValues = [
     undefined,
@@ -915,7 +1065,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   await test('new async APIs operate in a Worker without the DOM', async () => {
     const source =
       bundleSource +
-      `\nself.onmessage=async function(){try{const f=Functions;const tap=f.tapAsync(async()=>{});const value=await f.pipe.async(async(a,b)=>a+b,tap,x=>x*2)(2,3);const result=await f.attempt.resultAsync(()=>Promise.resolve(value));await f.sleep(0);const once=f.once(()=>({}));const same=once()===once();const c=new AbortController();const pending=f.sleep(100,{signal:c.signal});c.abort('cancelled');let reason;try{await pending;}catch(error){reason=error;}self.postMessage({value:result.value,ok:result.ok,same,reason});}catch(error){self.postMessage({error:error.message});}};`;
+      `\nself.onmessage=async function(){try{const f=Functions;const tap=f.tapAsync(async()=>{});const value=await f.pipeAsync(async(a,b)=>a+b,tap,x=>x*2)(2,3);const result=await f.attemptResultAsync(()=>Promise.resolve(value));await f.sleep(0);const once=f.once(()=>({}));const same=once()===once();const c=new AbortController();const pending=f.sleep(100,{signal:c.signal});c.abort('cancelled');let reason;try{await pending;}catch(error){reason=error;}self.postMessage({value:result.value,ok:result.ok,same,reason});}catch(error){self.postMessage({error:error.message});}};`;
     const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
     const worker = new Worker(url);
     try {
@@ -934,9 +1084,9 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       URL.revokeObjectURL(url);
     }
   });
-  await test('2.2 aliases are exact references', () => {
-    equal(f.partial.right, f.partialRight);
-    equal(f.repeat.async, f.repeatAsync);
+  await test('partial and repeat have no duplicate attached variants', () => {
+    equal(Object.prototype.hasOwnProperty.call(f.partial, 'right'), false);
+    equal(Object.prototype.hasOwnProperty.call(f.repeat, 'async'), false);
   });
   for (const name of ['partial', 'partialRight', 'unary', 'when', 'ifElse', 'debounce', 'throttle']) {
     await test(`${name} rejects document.all as a callback`, () => throwsType(() => f[name](document.all)));

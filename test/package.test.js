@@ -7,6 +7,7 @@ suite('package entry point', function () {
     const expected = [
       'and',
       'andAsync',
+      'applyIf',
       'attempt',
       'attemptResult',
       'attemptResultAsync',
@@ -27,6 +28,7 @@ suite('package entry point', function () {
       'pipeAsync',
       'repeat',
       'repeatAsync',
+      'result',
       'sleep',
       'spread',
       'tap',

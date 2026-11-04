@@ -1,15 +1,14 @@
 # Go Functions
 
-**Utility functions for composing, scheduling and adapting functions.**
+**A collection of JavaScript utilities for working with functions and their results.**
 
 [![Source line coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](#development)
 [![Documentation](https://img.shields.io/badge/docs-100%25-brightgreen.svg)](docs/API.md)
-[![Donate](https://img.shields.io/badge/donate-blue.svg)](https://www.paypal.com/donate/?business=T7Q29NNMZVW98&no_recurring=0&item_name=Support+Go+Functions&currency_code=USD)
 
 - **Version:** [{{VERSION}}](CHANGELOG.md)
 - **Licence:** [{{LICENSE}}](LICENSE.md)
 
-Compose synchronous or asynchronous pipelines, combine predicates, adapt callback arguments and control invocation with timers, cancellation, debouncing and throttling.
+Build synchronous or asynchronous pipelines, combine predicates, adapt callback arguments, and capture success or failure. Control when and how often functions run with helpers for delays, debouncing and throttling.
 
 No runtime dependencies. TypeScript declarations included.
 
@@ -38,8 +37,8 @@ yarn add go-fns
 <!-- prettier-ignore -->
 | Environment | Requirement |
 | --- | --- |
-| CommonJS | Node.js 8.0.0 or later, including public `src/` imports. |
-| ES modules | Native default and named imports work on Node.js 14.13.0 or later, or Node.js 12.20.0+ within 12.x, through CommonJS interoperability. |
+| CommonJS | Node.js 8.0.0 or later, including function subpaths and existing public `src/` imports. |
+| ES modules | Node.js 14.13.0 or later, or Node.js 12.20.0+ within 12.x, for both default and named imports. Root imports use CommonJS interoperability. Function subpaths have native ES module entries. |
 | Browser | Modern browsers with `Reflect.apply`, `Number.isInteger`, `Number.isFinite`, promises and async functions. |
 | Cancellation | `sleep` accepts an AbortSignal-compatible object supplied by the host; native `AbortController` and `AbortSignal` constructors are optional. |
 
@@ -57,24 +56,13 @@ The library installs no global polyfills. See [Development](#development) for th
 
 <!-- prettier-ignore -->
 ```javascript
-import Functions from 'go-fns';
-
-Functions.pipe(Math.floor, Math.sqrt)(4.5);            // => 2
-[1, 2, 3.1].filter(Functions.not(Number.isInteger));   // => [3.1]
-```
-
-Or import individual functions:
-
-<!-- prettier-ignore -->
-```javascript
 import { pipe, not } from 'go-fns';
 
 pipe(Math.floor, Math.sqrt)(4.5);                      // => 2
 [1, 2, 3.1].filter(not(Number.isInteger));             // => [3.1]
 ```
 
-The default import is the complete public API object. The package entry is
-CommonJS; Node loads these ES module imports through its CommonJS interoperability.
+A default import (`import Functions from 'go-fns'`) exposes the complete public API object. The package entry is CommonJS; Node loads these ES module imports through its CommonJS interoperability.
 
 ### CommonJS
 
@@ -86,34 +74,42 @@ pipe(Math.floor, Math.sqrt)(4.5);                      // => 2
 [1, 2, 3.1].filter(not(Number.isInteger));             // => [3.1]
 ```
 
-Public `src/` imports remain available with or without the `.js` extension:
+### Function subpaths
+
+Every top-level function also has an individual import path. CommonJS returns the
+same callable directly; ES modules provide both named and default exports, such
+as `import { pipe } from 'go-fns/pipe'` or `import pipe from 'go-fns/pipe'`.
 
 <!-- prettier-ignore -->
 ```javascript
-const pipe = require('go-fns/src/pipe');
-const not = require('go-fns/src/logic/not.js');
+const pipe = require('go-fns/pipe');
+const not = require('go-fns/not');
 
 pipe(Math.floor, Math.sqrt)(4.5);                      // => 2
 [1, 2, 3.1].filter(not(Number.isInteger));             // => [3.1]
 ```
 
-These CommonJS paths follow the [runtime support](#runtime-support) requirements
-above. Their companion declarations support TypeScript consumers.
+These entries share function identity with named root imports
+and load the function's implementation directly. Existing public `src/` imports,
+with or without `.js`, remain supported, including `go-fns/src/pipe` and
+`go-fns/src/logic/not.js`.
 
 ### Browser
 
-Copy the distribution into your application and load it locally:
+Load Go Functions from jsDelivr or host a bundle yourself:
+
+- [Minified bundle](https://cdn.jsdelivr.net/npm/{{NAME}}@{{VERSION}}/dist/go-fns.min.js)
+- [Readable bundle](https://cdn.jsdelivr.net/npm/{{NAME}}@{{VERSION}}/dist/go-fns.js)
+
+The bundle exposes `Functions`:
 
 <!-- prettier-ignore -->
 ```html
-<script src="./dist/go-fns.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/{{NAME}}@{{VERSION}}/dist/go-fns.min.js"></script>
 <script>
   const { pipe, not } = Functions;
-  console.log(pipe(Math.floor, Math.sqrt)(4.5));           // => 2
-  console.log([1, 2, 3.1].filter(not(Number.isInteger)));  // => [3.1]
-
-  // Namespace calls work too; the timer is invoked with the host global.
-  Functions.delay(console.log, 100, 'hello');
+  pipe(Math.floor, Math.sqrt)(4.5);                      // => 2
+  [1, 2, 3.1].filter(not(Number.isInteger));             // => [3.1]
 </script>
 ```
 
@@ -132,54 +128,122 @@ See the **[full API documentation](docs/API.md)** for parameters, return values,
 
 ## Behaviour
 
+`applyIf(value, condition, transform)` applies one transformation immediately. The condition is a boolean flag or a predicate whose result uses JavaScript truthiness, matching `when`. Use `when` to create a reusable transformation.
+
+<!-- prettier-ignore -->
+```javascript
+import { applyIf } from 'go-fns';
+
+applyIf('42', true, Number);                   // => 42
+applyIf('42', false, Number);                  // => '42'
+applyIf('42', value => value.length, Number);  // => 42
+```
+
+`result(value, ...args)` accepts a fixed value or a callback that computes one.
+It returns the value unchanged or calls the callback once and propagates any throw.
+To use a function as the value, pass a callback that returns it.
+
+Use `attemptResult` to distinguish a normal return from a throw, or
+`attemptResultAsync` to capture a promise rejection as well. Both use `ok` to
+identify the outcome. `attempt` returns the raw value in either case.
+
+<!-- prettier-ignore -->
+```javascript
+import { attempt, attemptResult } from 'go-fns';
+
+const error = new Error('Unavailable');
+const returnError = () => error;
+const throwError = () => { throw error; };
+
+attempt(returnError) === attempt(throwError); // => true
+attemptResult(returnError);                  // => { ok: true, value: error }
+attemptResult(throwError);                   // => { ok: false, error }
+```
+
+`and`, `or`, `not`, `nor` and `xor` create predicates. The supplied callbacks run when you call the returned predicate.
+
+<!-- prettier-ignore -->
+```javascript
+import { and, not, or } from 'go-fns';
+
+const isActive = user => user.active;
+const isOwner = user => user.role === 'owner';
+const isAdmin = user => user.role === 'admin';
+const isLocked = user => user.locked;
+const canEdit = and(isActive, or(isOwner, isAdmin), not(isLocked));
+
+canEdit({ active: true, role: 'admin', locked: false }); // => true
+canEdit({ active: true, role: 'admin', locked: true });  // => false
+```
+
+The multi-predicate helpers evaluate from left to right. `and` stops at the first falsy result. `or` and `nor` stop at the first truthy result. `xor` succeeds when **exactly one** result is truthy and stops at the second truthy result. With no predicates, or only `null` and `undefined` entries, all four return a predicate that returns `false`. `not` requires one callback.
+
 Synchronous helpers treat promises as ordinary values. Use `pipeAsync`,
 `attemptResultAsync`, `tapAsync` and `repeatAsync` when results must be awaited.
 For predicates, `andAsync`, `orAsync`, `xorAsync`, `norAsync` and `notAsync` create wrappers that always
 return `Promise<boolean>`, awaiting callback results while passing arguments unchanged.
-The multi-predicate variants run callbacks sequentially and short-circuit;
-`xorAsync` tests for exactly one truthy result. `whenAsync` and `ifElseAsync`
+The async variants follow the same short-circuit and empty-input rules.
+`whenAsync` and `ifElseAsync`
 await their predicates before running the selected transform or branch, then
 await its result. Their factories validate all required callbacks immediately.
 
 <!-- prettier-ignore -->
 ```javascript
 const { andAsync, ifElseAsync } = require('go-fns');
-const isInRange = andAsync(value => value > 0, async value => value < 10);
-const describe = ifElseAsync(
-  isInRange,
-  async value => 'Accepted: ' + value,
-  value => 'Outside range: ' + value
-);
 
-await describe(3);             // => 'Accepted: 3'
-await describe(12);            // => 'Outside range: 12'
+async function main() {
+  const isInRange = andAsync(value => value > 0, async value => value < 10);
+  const describe = ifElseAsync(
+    isInRange,
+    async value => 'Accepted: ' + value,
+    value => 'Outside range: ' + value
+  );
+
+  console.log(await describe(3));             // => 'Accepted: 3'
+  console.log(await describe(12));            // => 'Outside range: 12'
+}
+
+main();
 ```
 
 Async predicate wrappers cannot be used with `Array.prototype.filter` or synchronous
-go-types matcher callbacks: those APIs treat their promises as truthy. The original
-synchronous predicates retain that behaviour. Schedulers limit invocation starts,
-not concurrent asynchronous work.
+go-types matcher callbacks: those APIs treat their promises as truthy. Use
+`await whenAsync(predicate, transform)(value)` for a one-off transformation
+with an awaited predicate.
 
 Returned wrappers forward the caller's receiver. `attempt`, its result variants,
-`repeat` and `repeatAsync` instead use the callback itself as its receiver;
-bind the callback when another receiver is needed. Required callbacks are validated
+`repeat` and `repeatAsync` instead use the callback itself as its receiver.
+`applyIf` forwards its caller's receiver, and `result` calls its callback without
+forwarding a receiver. Use `method.bind(owner)` for callbacks that need a specific
+object as `this`. Required callbacks are validated
 before execution. `pipe` and logical combinators skip nullish entries; empty
 pipelines return `undefined`. Empty logical predicates return `false`, or resolve to
 `false` for async variants.
 
-`debounce` defaults to trailing-only execution; `throttle` defaults to both edges.
-Host timers may run late. `cancel()` discards pending invocation, and `flush()`
-runs eligible work immediately. Neither stops asynchronous work already started.
-Handle callback errors and rejected promises, and cancel scheduled wrappers during cleanup.
+`debounce` defaults to trailing-only execution. `throttle` defaults to both edges.
+Calling a wrapper gives you its most recent callback return value, or `undefined`
+before the first successful return. For example, `await debouncedSave(value)`
+may await a promise from an earlier save or complete before the scheduled save starts.
+Schedulers limit invocation starts and allow asynchronous work to overlap.
+Handle promise rejections inside the callback or track completion separately.
+
+Host timers may run late. On a wrapper such as `debouncedSave`, `cancel()` discards
+pending work, `flush()` runs eligible work immediately, and `pending()` checks
+whether an invocation is scheduled. Work already started continues. Cancel pending
+work during cleanup.
 
 See [Behaviour in the full reference](docs/API.md#behaviour) for validation, receiver,
 empty-input, timing and argument-adaptation contracts.
 
 ## TypeScript
 
-Declaration files are included; no runtime TypeScript dependency or source rewrite
-is required. They target TypeScript 5.4+ and were checked with 5.8.3. They support
-default and named imports, CommonJS imports, attached variants and public `src/` module paths.
+TypeScript declarations are included; no separate `@types` package is required.
+
+The declarations infer callback inputs and results and retain argument and receiver requirements. They support default and named imports, CommonJS imports, individual function paths and existing public `src/` module paths.
+
+For named function-subpath imports, use `Node16`, `NodeNext` or `Bundler` module resolution. Legacy `Node` resolution supports CommonJS and default function imports with the configured interop setting; use named root imports for that resolution mode.
+
+Consumer declarations support TypeScript 5.4 or later. See the [typing contracts and tested compiler versions](docs/API.md#typescript) for inference and receiver limitations.
 
 ```typescript
 import { pipe, pipeAsync, attemptResult, type Result } from 'go-fns';
@@ -226,43 +290,24 @@ See the [development guide](https://github.com/koyote130708/go-fns/blob/master/d
 
 ## Migration
 
-The ten original export names and established empty-input results remain
-available. Version 2.0.0 adds asynchronous composition, structured attempt results,
-observers, cancellable waits, cached invocation, scheduling, argument adapters and
-conditional composition, with TypeScript declarations for all 32 exports.
-
-Returned wrappers now forward the caller's exact receiver, including `undefined`,
-`null` and primitive values. `and` and `not` no longer use the callback as its own
-receiver; bind a callback explicitly if it needs that behaviour. `attempt` and
-`repeat` retain their original callback-as-receiver convention.
-
-`repeat` rejects string/boolean, fractional, negative, infinite, `NaN` and
-non-array-representable counts before invoking the callback. `null` and `undefined`
-still mean zero. Invalid callback values produce `TypeError` without coercion.
-Unfinished deep-import prototypes are outside the public package; use the
-documented root exports or public `src/` modules.
-
-The package remains CommonJS, with default and named ES module interoperability.
-See [CHANGELOG.md](CHANGELOG.md) for release and migration details. The 2.1.x and
-2.2.x labels in earlier development material were unreleased snapshots, now
-consolidated into version 2.0.0.
+Version 2.0.0 retains the ten original root exports and adds TypeScript declarations
+and utilities for async composition, results, scheduling and argument adaptation.
+See [Upgrading from 1.0.0](CHANGELOG.md#upgrading-from-100) for changes to receiver
+forwarding, repetition counts, runtime requirements and internal import paths.
 
 ## Development
 
-Use Node.js 22.16 or later for contributor commands. This is separate from
-[consumer runtime support](#runtime-support).
+Use npm for development. Contributor tools require Node.js 22.16.0 or later, excluding Node.js 23. This requirement is separate from [consumer runtime support](#runtime-support).
 
 ```sh
 npm ci
-npm run docs
 npm run build
 npm test
 ```
 
-Edit `scripts/README.template.md` for the overview and `scripts/API.template.md`
-for the shared API summary and full reference, then run `npm run docs`.
-`npm run test:docs` checks both generated files, links, public API coverage,
-executable examples and TypeScript snippets. Both documents ship with the package.
+Edit `scripts/README.template.md` and `scripts/API.template.md`. `npm run build` regenerates `README.md` and `docs/API.md`, then assembles the consumer package under `package/`, including the browser bundles in `package/dist/`. Use `npm run docs` for documentation-only updates.
+
+`npm run test:docs` checks both generated files, links, public API coverage, executable examples and TypeScript snippets. Both documents ship with the package. The installed-package checks run the CommonJS examples on the selected consumer runtimes, including Node.js 8.0.0 in the standard gate.
 
 Run the complete standard gate with the exact Node.js 8.0.0 consumer executable:
 
@@ -270,15 +315,9 @@ Run the complete standard gate with the exact Node.js 8.0.0 consumer executable:
 npm run verify -- --node8 /path/to/node-8.0.0
 ```
 
-The build assembles the complete consumer package under `package/`, including
-the browser bundles in `package/dist/`. `verify` builds and packs one candidate,
-then checks documentation, source coverage, declarations, build failures, tooling,
-artefacts and installed consumers. `verify:all` adds Chromium checks of that same
-tarball. `GO_FNS_NODE8` can supply the exact executable instead of `--node8`.
+`npm run verify` builds and packs one candidate, then checks lint, formatting, generated documentation, source coverage, declarations, build recovery, tooling, package contents and installed consumers. `npm run verify:all` adds Chromium, Firefox and WebKit checks against the same archive, including the browser bundles and README example. `GO_FNS_NODE8` can supply the exact executable instead of `--node8`.
 
-The coverage badge measures executable source-line coverage; the docs badge
-measures checked public API reference coverage. Neither guarantees correctness
-for every input. See the [development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md)
+The coverage badge measures executable source-line coverage. The documentation badge measures public API reference coverage. Neither badge guarantees correctness for every input. See the [development guide](https://github.com/koyote130708/go-fns/blob/master/docs/project-validation.md)
 for coverage scope, exact-runtime checks, build recovery, local package use,
 browser setup, release procedures and benchmark commands.
 
@@ -291,4 +330,4 @@ browser setup, release procedures and benchmark commands.
 
 ## Licence
 
-MIT. See [LICENSE.md](LICENSE.md).
+Licensed under the [MIT licence](LICENSE.md).

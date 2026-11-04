@@ -1,7 +1,7 @@
 {
   "all": true,
   "include": ["index.js", "src/**/*.js"],
-  "exclude": ["src/.tmp/**"],
+  "exclude": ["**/temp/**", "**/.tmp/**"],
   "reporter": ["text", "html", "json-summary", "lcov"],
   "check-coverage": true,
   "per-file": true,

@@ -1,7 +1,9 @@
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const { wrap } = require('node:module');
 const path = require('node:path');
+const { Script } = require('node:vm');
 const ts = require('typescript');
 const api = require('./helpers/api.js');
 const entryDirectory = process.env.GO_FNS_TEST_ENTRY
@@ -72,13 +74,16 @@ function assertExamples(example) {
 async function runExample(example) {
   example = example
     .replace(/import (\w+) from 'go-fns';/g, "const $1 = require('go-fns');")
-    .replace(/import \{([^}]+)\} from 'go-fns';/g, "const {$1} = require('go-fns');");
+    .replace(/import \{([^}]+)\} from 'go-fns';/g, "const {$1} = require('go-fns');")
+    // Wait for assertions in standalone async CommonJS examples.
+    .replace(/\nmain\(\);\s*$/, '\nreturn main();');
   const run = new AsyncFunction('require', 'console', '__assert', '__api', assertExamples(example));
   const quietConsole = { log() {}, error() {}, debug() {} };
   await run(
     function (name) {
+      if (name === 'assert') return assert;
       if (name === 'go-fns') return api;
-      assert.match(name, /^go-fns\/src\/(?:logic\/)?[a-zA-Z]+(?:\.js)?$/);
+      assert.match(name, /^go-fns\/(?:src\/(?:logic\/)?)?[a-zA-Z]+(?:\.js)?$/);
       const key = path.basename(name, '.js');
       assert.ok(Object.prototype.hasOwnProperty.call(api, key));
       return api[key];
@@ -89,63 +94,82 @@ async function runExample(example) {
   );
 }
 
+function summaryRows() {
+  const summary = documentation.split('\n## ')[0];
+  return [...summary.matchAll(/^\| \[`([^`]+)`\]\(#([^)]*)\) \| (.+) \| (.+) \|$/gm)];
+}
+function operationRows() {
+  return summaryRows().filter((row) => !row[1].split('(')[0].includes('.'));
+}
+function publicFunction(name) {
+  return name.split('.').reduce((value, key) => value && value[key], api);
+}
+function summaryLinks() {
+  return operationRows().flatMap((row) => [
+    { name: row[1].split('(')[0], anchor: row[2] },
+    ...[...row[3].matchAll(/\[`([\w.]+)`\]\(#([\w-]+)\)/g)].map((match) => ({
+      name: match[1],
+      anchor: match[2]
+    }))
+  ]);
+}
+function signatureAnchor(signature) {
+  return signature
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s/g, '-');
+}
+
 suite('documentation examples and public API inventory', function () {
   test('the reference documents every export exactly once', function () {
     const headings = [...documentation.matchAll(/^### `([a-zA-Z]+)\((?!\)\.)[^\n]*\)`$/gm)].map((match) => match[1]);
     assert.deepEqual(headings.sort(), Object.keys(api).sort());
   });
   test('API summary links every root export and scheduler method with a return contract', function () {
-    const summary = documentation.split('\n## ')[0];
-    const rows = [...summary.matchAll(/^\| \[`([^`]+)`\]\(#([^)]*)\) \| (.+) \| (.+) \|$/gm)];
-    const roots = rows.filter((row) => /^[A-Za-z]+\(/.test(row[1]) && !row[1].includes('().'));
-    assert.deepEqual(roots.map((row) => row[1].split('(')[0]).sort(), Object.keys(api).sort());
+    const rows = summaryRows();
+    const roots = operationRows();
+    const namedLinks = summaryLinks().filter((link) => !link.name.includes('.'));
+    assert.deepEqual(namedLinks.map((link) => link.name).sort(), Object.keys(api).sort());
+    const operations = [];
     for (const row of roots) {
-      const signature = references.get(row[1].split('(')[0]).split('\n')[0];
-      assert.equal(row[1], signature);
-      assert.equal(
-        row[2],
-        signature
-          .toLowerCase()
-          .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-          .replace(/\s/g, '-')
-      );
+      const fn = publicFunction(row[1].split('(')[0]);
+      const target = Object.keys(api).find((name) => api[name] === fn);
+      assert.ok(target, 'Summary operation needs a public reference target: ' + row[1]);
+      operations.push(target);
+      const signature = references.get(target).split('\n')[0];
+      assert.equal(row[1].slice(row[1].indexOf('(')), signature.slice(signature.indexOf('(')));
+      assert.equal(row[2], signatureAnchor(signature));
+      assert.match(row[4], /^\*\*`[^`]+`\*\*/);
+      assert.ok(row[4].includes('<br><br>'), 'Each operation needs a self-contained return explanation.');
+    }
+    assert.deepEqual(operations.sort(), Object.keys(api).sort(), 'Each distinct operation has one summary row.');
+    for (const link of namedLinks) {
+      assert.equal(link.anchor, signatureAnchor(references.get(link.name).split('\n')[0]));
     }
     for (const name of ['debounce', 'throttle']) {
       const wrapper = api[name](function () {});
       const methods = Object.keys(wrapper)
         .filter((key) => typeof wrapper[key] === 'function')
         .sort();
-      const methodRows = rows.filter((row) => row[1].startsWith(name + '().'));
-      assert.deepEqual(methodRows.map((row) => row[1].slice(name.length + 3, -2)).sort(), methods);
+      const prefix = name + 'd.';
+      const methodRows = rows.filter((row) => row[1].startsWith(prefix));
+      assert.deepEqual(methodRows.map((row) => row[1].slice(prefix.length, -2)).sort(), methods);
+      for (const row of methodRows) {
+        const signature = name + '().' + row[1].slice(prefix.length);
+        assert.equal(row[2], signatureAnchor(signature));
+      }
       wrapper.cancel();
     }
   });
-  test('attached aliases link to the reference for the exact exported function', function () {
-    const summary = documentation.split('\n## ')[0];
-    const rows = [...summary.matchAll(/^\| \[`([\w.]+)\([^`]*`\]\(#([\w-]+)\) \| .+ Alias of `(\w+)`\. \| (.+) \|$/gm)];
-    const actual = [];
-    for (const [name, fn] of Object.entries(api)) {
-      for (const property of Object.getOwnPropertyNames(fn)) {
-        const descriptor = Object.getOwnPropertyDescriptor(fn, property);
-        if (typeof descriptor.value !== 'function') continue;
-        const target = Object.keys(api).find((key) => api[key] === descriptor.value);
-        assert.ok(target, `${name}.${property} needs a public reference target.`);
-        actual.push(`${name}.${property}`);
-        const row = rows.find((row) => row[1] === `${name}.${property}`);
-        assert.ok(row, `Missing reference for ${name}.${property}.`);
-        assert.equal(row[3], target);
-        const signature = references.get(target).split('\n')[0];
-        assert.equal(
-          row[2],
-          signature
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-            .replace(/\s/g, '-')
-        );
-        assert.ok(references.has(target));
-      }
+  test('summary uses standalone names without duplicate attached variants', function () {
+    const links = summaryLinks().filter((link) => link.name.includes('.'));
+    assert.deepEqual(links, []);
+    for (const fn of Object.values(api)) {
+      const attached = Object.getOwnPropertyNames(fn).filter(
+        (property) => typeof Object.getOwnPropertyDescriptor(fn, property).value === 'function'
+      );
+      assert.deepEqual(attached, []);
     }
-    assert.deepEqual(rows.map((row) => row[1]).sort(), actual.sort());
   });
   test('each scheduler documents all attached methods beside its own reference', function () {
     for (const name of ['debounce', 'throttle']) {
@@ -156,7 +180,7 @@ suite('documentation examples and public API inventory', function () {
       const entries = referenceEntries.filter(([key]) => key.startsWith(name + '().')).map(([, entry]) => entry);
       assert.deepEqual(entries.map((entry) => entry.split('().')[1].split('(')[0]).sort(), methods, name);
       for (const entry of entries) {
-        assert.match(entry, /\*\*Parameters:\*\* None\./);
+        assert.match(entry, /\*\*Parameters\*\*\n\nNo parameters\./);
         assert.match(entry, /\*\*Returns:\*\* `[^`]+` — .+/);
         assert.match(entry, /```javascript\n/);
       }
@@ -202,6 +226,9 @@ for (const [name, text] of Object.entries({ 'README.md': readme, 'docs/API.md': 
             .replace(/\bFunctions\b/g, '__api')
         : block[2];
     test(name + ' example ' + (index + 1) + ' executes its annotated results', async function () {
+      if (block[1] === 'javascript' && /\brequire\(['"]go-fns/.test(example)) {
+        assert.doesNotThrow(() => new Script(wrap(example)), 'Example must parse as CommonJS before instrumentation.');
+      }
       await runExample(example);
     });
   }

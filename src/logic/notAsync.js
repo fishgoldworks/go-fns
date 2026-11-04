@@ -3,7 +3,7 @@
 var expectFunction = require('../util/expectFunction');
 
 /**
- * Creates an async predicate that negates its callback's awaited truthiness.
+ * Creates a predicate that awaits its callback result and negates its truthiness.
  * The returned predicate forwards all original call arguments and the caller's `this`.
  * Input arguments are never awaited. Construction validates immediately without invoking
  * the callback; each invocation starts the callback and returns a new promise.

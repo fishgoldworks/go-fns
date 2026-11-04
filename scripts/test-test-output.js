@@ -69,7 +69,7 @@ test('a genuinely pending async consumer is rejected despite a zero process exit
     const preload = path.join(temporary, 'pending.cjs');
     fs.writeFileSync(
       preload,
-      `const api = require(${JSON.stringify(root)}); api.notAsync = api.not.async = function () { return () => new Promise(() => {}); };`
+      `const api = require(${JSON.stringify(root)}); api.notAsync = function () { return () => new Promise(() => {}); };`
     );
     const env = { ...process.env, NODE_OPTIONS: '' };
     delete env.NODE_TEST_CONTEXT;
@@ -97,7 +97,7 @@ test('installed-package gate rejects a real consumer that abandons pending async
       pending,
       `
       const api = require(require.resolve('go-fns', {paths:[require('node:path').dirname(process.argv[1])]}));
-      api.notAsync = api.not.async = function () { return () => new Promise(() => {}); };
+      api.notAsync = function () { return () => new Promise(() => {}); };
     `
     );
     // Only augment the selected consumer launch. npm install, package loading,

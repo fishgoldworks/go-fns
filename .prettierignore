@@ -9,6 +9,7 @@ node_modules/
 /package/
 
 # Build staging and temporary files
+temp/
 .tmp/
 /.build-*/
 

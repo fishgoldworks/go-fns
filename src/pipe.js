@@ -37,18 +37,3 @@ function pipe(fns) {
 }
 
 module.exports = pipe;
-/**
- * Creates a function that runs stages from left to right, awaiting each result. Alias of
- * `pipeAsync`.
- * The first stage receives all call arguments; each later stage receives one awaited result.
- * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
- * immediately; calling the pipeline starts the first stage and returns a promise.
- * @param {...(Function|null|undefined)} fns Functions in call order; `null` and `undefined`
- * entries are skipped.
- * @returns {Function} A pipeline whose promise resolves to the last awaited result, or
- * `undefined` when no stages remain. A throw or rejection stops later stages.
- * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
- * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
- */
-module.exports.async = require('./pipeAsync');

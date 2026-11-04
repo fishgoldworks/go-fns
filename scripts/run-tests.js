@@ -28,6 +28,7 @@ function collect(directory) {
     .readdirSync(directory, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name))
     .flatMap((entry) => {
+      if (entry.name === 'temp' || entry.name === '.tmp') return [];
       const full = path.join(directory, entry.name);
       return entry.isDirectory() ? collect(full) : /\.test\.js$/.test(entry.name) ? [full] : [];
     });

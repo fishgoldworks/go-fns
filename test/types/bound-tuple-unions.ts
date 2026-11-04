@@ -1,4 +1,4 @@
-import { partialRight, partial } from '../../index';
+import { partialRight } from '../../index';
 import partialRightDeep = require('../../src/partialRight');
 
 declare const suffix: [number] | [number, number];
@@ -8,9 +8,6 @@ function pair(this: { label: string }, first: number, second: number) {
 const bound = partialRight(pair, ...suffix);
 // @ts-expect-error the saved tuple might contain only the final argument
 bound.call({ label: 'pair' });
-const alias = partial.right(pair, ...suffix);
-// @ts-expect-error the alias must retain every possible saved-argument count
-alias.call({ label: 'pair' });
 const focused = partialRightDeep(pair, ...suffix);
 // @ts-expect-error focused imports must retain every possible saved-argument count
 focused.call({ label: 'pair' });

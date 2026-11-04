@@ -4,7 +4,7 @@ var getGlobal = require('./util/getGlobal');
  * Creates a promise that resolves after a cancellable pause.
  * The host timer may run late. An already-aborted signal rejects without scheduling a timer.
  * Later cancellation clears the timer; listener cleanup runs on success, cancellation or
- * scheduling failure.
+ * scheduling failure. A suppressed abort event is detected when the timer fires.
  * Rejects with `TypeError` for invalid argument types or `RangeError` for unsupported
  * durations. Signal and host-timer errors also reject the promise.
  * @param {number} [milliseconds=0] Finite duration from 0 through 2147483647 milliseconds;
@@ -77,22 +77,34 @@ function sleep(milliseconds, options) {
       else resolve();
     }
     function onAbort() {
+      if (settled) return;
       try {
         // dispatchEvent(new Event('abort')) does not actually abort a signal.
-        if (signal.aborted) finish(true, signal.reason);
+        var aborted = signal.aborted;
+        if (!settled && aborted) finish(true, signal.reason);
       } catch (error) {
         finish(true, error);
       }
     }
     function onTimeout() {
-      finish(false);
+      if (settled) return;
+      try {
+        // An earlier listener can suppress our abort event; recheck before resolving.
+        var aborted = signal !== undefined && signal.aborted;
+        // Structural signals may settle the wait from an effectful getter.
+        if (settled) return;
+        if (aborted) finish(true, signal.reason);
+        else finish(false);
+      } catch (error) {
+        finish(true, error);
+      }
     }
     try {
       if (signal !== undefined) {
         listening = true;
         // Not once:true: ignore synthetic events without losing real cancellation.
         Reflect.apply(add, signal, ['abort', onAbort]);
-        if (signal.aborted) onAbort();
+        if (!settled && signal.aborted) onAbort();
       }
       if (!settled) {
         timer = getGlobal().setTimeout(onTimeout, milliseconds);

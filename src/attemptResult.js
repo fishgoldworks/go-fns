@@ -27,17 +27,3 @@ function attemptResult(fn, ...args) {
   }
 }
 module.exports = attemptResult;
-/**
- * Invokes a callback, awaits its result and reports success or failure in a result object.
- * Alias of `attemptResultAsync`.
- * The callback itself is its receiver. Callback throws, promise rejections and failures while
- * awaiting thenables are captured without replacing the original failure. Invalid callbacks
- * reject instead of producing a failure result.
- * Rejects with `TypeError` if `fn` is not a function.
- * @param {Function} fn Required callback.
- * @param {...*} args Arguments passed to the callback.
- * @returns {Promise<Object>} A promise resolving to a fresh `{ ok: true, value }` object with
- * the awaited value, or `{ ok: false, error }` with the exact failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
- */
-module.exports.async = require('./attemptResultAsync');

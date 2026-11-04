@@ -1,6 +1,5 @@
 import * as f from '../..';
 import { pipe, pipeAsync, tap, tapAsync, attemptResult, attemptResultAsync, once, sleep, type Result } from '../..';
-import sourcePipe = require('../../src/pipe');
 import sourceOnce = require('../../src/once');
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -84,12 +83,6 @@ const asyncNulls = pipeAsync(
 );
 const asyncNullResult: Promise<string> = asyncNulls(1);
 const asyncEmpty: Promise<undefined> = pipeAsync()('anything');
-const named: typeof pipeAsync = pipe.async;
-const resultAlias: typeof attemptResult = f.attempt.result;
-const asyncResultAlias: typeof attemptResultAsync = f.attempt.resultAsync;
-const resultAsyncAlias: typeof attemptResultAsync = attemptResult.async;
-const tapAlias: typeof tapAsync = tap.async;
-const sourceAlias: typeof pipeAsync = sourcePipe.async;
 
 const receiverPipeline = pipe(
   function (this: { prefix: string }, s: string) {

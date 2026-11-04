@@ -1,6 +1,10 @@
-# Go Functions API reference
+# Go Functions API
 
-Version [{{VERSION}}](../CHANGELOG.md). Return to the [README](../README.md) for installation, runtime requirements and usage.
+[← Back to README](../README.md)
+
+Full API documentation for [go-fns {{VERSION}}](../CHANGELOG.md).
+
+[Runtime support](../README.md#runtime-support)
 
 ## Contents
 
@@ -10,100 +14,77 @@ Version [{{VERSION}}](../CHANGELOG.md). Return to the [README](../README.md) for
 
 <!-- prettier-ignore-start -->
 
-The 32 root exports, attached aliases and scheduler methods form the public API. The aliases are the same function objects as their named exports. A `?` marks an optional parameter. `T` denotes a callback or branch result and `V` the input value type; async result helpers await their results. Signatures summarise call shapes; the full declarations preserve argument and receiver constraints. `TimerHandle` follows the host timer type. See [TypeScript](#typescript) for inference and receiver requirements.
+The standalone functions and scheduler methods form the public API. A `?` marks an optional parameter. `T` denotes a callback or branch result and `V` the input value type; async result helpers await their results. Signatures summarise call shapes; the full declarations preserve argument and receiver constraints. `TimerHandle` follows the host timer type. See [TypeScript](#typescript) for inference and receiver requirements.
 
-**Functions**
+**Composition and observation**
 
 | API | Description | Returns |
 | --- | --- | --- |
 | [`pipe(...fns)`](#pipefns) | Creates a function that runs synchronous stages from left to right. | **`Function`** — `(...args) => T \| undefined`<br><br>A pipeline that returns the last stage result, or `undefined` when there are no stages. |
 | [`pipeAsync(...fns)`](#pipeasyncfns) | Creates a function that runs stages from left to right, awaiting each result. | **`Function`** — `(...args) => Promise<Awaited<T> \| undefined>`<br><br>A pipeline whose promise resolves to the last awaited result, or `undefined` when there are no stages. |
-| [`spread(fn)`](#spreadfn) | Creates a function that passes an array-like input to its callback as individual arguments. | **`Function`** — `(args) => T`<br><br>A wrapper that spreads the supplied argument list and returns the callback result. |
-| [`attempt(fn, ...args)`](#attemptfn-args) | Invokes a callback synchronously and returns its result or the exact value it throws. | **`unknown`**<br><br>The callback result, or the exact value thrown synchronously. |
-| [`attemptResult(fn, ...args)`](#attemptresultfn-args) | Invokes a callback synchronously and reports success or failure in a result object. | **`Result<T>`**<br><br>A fresh `{ ok: true, value }` object on success, or `{ ok: false, error }` on a synchronous throw. |
-| [`attemptResultAsync(fn, ...args)`](#attemptresultasyncfn-args) | Invokes a callback, awaits its result and reports success or failure in a result object. | **`Promise<Result<Awaited<T>>>`**<br><br>A promise resolving to a success object with the awaited value, or a failure object with the thrown or rejected value. |
-| [`tap(observer)`](#tapobserver) | Creates a function that calls an observer with one value and returns that value unchanged. | **`Function`** — `(value: V) => V`<br><br>A wrapper that calls the observer and returns the exact input value or reference. |
+| [`tap(observer)`](#tapobserver) | Creates a function that calls an observer and returns the original input. | **`Function`** — `(value: V) => V`<br><br>A wrapper that calls the observer and returns the exact input value or reference. |
 | [`tapAsync(observer)`](#tapasyncobserver) | Creates a function that awaits an observer before returning its input value. | **`Function`** — `(value: V) => Promise<Awaited<V>>`<br><br>A wrapper whose promise resolves to the input after the observer completes; promise inputs are unwrapped. |
-| [`sleep(milliseconds?, options?)`](#sleepmilliseconds-options) | Creates a promise that resolves after a cancellable pause. | **`Promise<void>`**<br><br>A promise resolving to `undefined` after the timer, or rejecting if the pause is aborted. |
-| [`once(fn)`](#oncefn) | Creates a function that invokes its callback at most once and caches the first outcome. | **`Function`** — `(...args) => T`<br><br>A wrapper that caches the first returned value or promise, or rethrows the first thrown value on subsequent calls. |
-| [`repeat(fn, count?, ...args)`](#repeatfn-count-args) | Invokes a callback a specified number of times synchronously and collects its results. | **`T[]`**<br><br>A fresh array containing each synchronous callback result in invocation order. |
-| [`delay(fn, milliseconds?, ...args)`](#delayfn-milliseconds-args) | Schedules a callback through the host's `setTimeout` and returns its timer handle. | **`TimerHandle`**<br><br>The native timeout handle: a browser number or a Node.js `Timeout` object. |
+
+**Predicate logic**
+
+| API | Description | Returns |
+| --- | --- | --- |
 | [`and(...fns)`](#andfns) | Creates a predicate that determines whether all supplied predicates return truthy values. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if at least one predicate is supplied and all results are truthy; otherwise `false`. |
 | [`andAsync(...fns)`](#andasyncfns) | Creates a predicate that awaits results in order and determines whether all are truthy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate whose promise resolves to `true` if at least one predicate is supplied and all awaited results are truthy; otherwise `false`. |
 | [`or(...fns)`](#orfns) | Creates a predicate that determines whether any supplied predicate returns a truthy value. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if any result is truthy; otherwise `false`. |
 | [`orAsync(...fns)`](#orasyncfns) | Creates a predicate that awaits results in order and determines whether any is truthy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate whose promise resolves to `true` if any awaited result is truthy; otherwise `false`. |
-| [`xor(...fns)`](#xorfns) | Creates a predicate that determines whether exactly one supplied predicate returns a truthy value. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if exactly one result is truthy; otherwise `false`. |
-| [`xorAsync(...fns)`](#xorasyncfns) | Creates a predicate that awaits results in order and determines whether exactly one is truthy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` for exactly one truthy result; it stops at the second truthy result and otherwise resolves to `false`. |
-| [`nor(...fns)`](#norfns) | Creates a predicate that determines whether all supplied predicates return falsy values. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if at least one predicate is supplied and all results are falsy; otherwise `false`. |
-| [`norAsync(...fns)`](#norasyncfns) | Creates a predicate that awaits results in order and determines whether all are falsy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` if at least one predicate is supplied and all awaited results are falsy; otherwise `false`. |
 | [`not(fn)`](#notfn) | Creates a predicate that negates its callback's truthiness. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if the callback result is falsy; otherwise `false`. |
 | [`notAsync(fn)`](#notasyncfn) | Creates a predicate that awaits its callback result and negates its truthiness. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate whose promise resolves to `true` if the awaited callback result is falsy; otherwise `false`. |
-| [`debounce(fn, milliseconds?, options?)`](#debouncefn-milliseconds-options) | Creates a function that combines a burst of calls using the latest arguments and receiver. | **`Function`** — `(...args) => T \| undefined`<br><br>A scheduled wrapper returning the last completed result or `undefined`, with `cancel`, `flush` and `pending` methods. |
-| [`throttle(fn, milliseconds?, options?)`](#throttlefn-milliseconds-options) | Creates a function that limits callback invocation frequency while calls continue. | **`Function`** — `(...args) => T \| undefined`<br><br>A scheduled wrapper returning the last completed result or `undefined`, with `cancel`, `flush` and `pending` methods. |
-| [`partial(fn, ...args)`](#partialfn-args) | Creates a function that prepends saved arguments to each call without binding its receiver. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the callback result after prepending the saved arguments. |
-| [`partialRight(fn, ...args)`](#partialrightfn-args) | Creates a function that appends saved arguments to each call without binding its receiver. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the callback result after appending the saved arguments. |
-| [`unary(fn)`](#unaryfn) | Creates a function that forwards exactly one argument to its callback. | **`Function`** — `(value) => T`<br><br>A wrapper returning the callback result after passing exactly one argument. |
-| [`when(predicate, transform)`](#whenpredicate-transform) | Creates a function that transforms one value when a predicate is truthy and otherwise returns it unchanged. | **`Function`** — `(value: V) => V \| T`<br><br>A wrapper returning the transform result when the predicate is truthy; otherwise the original input. |
-| [`whenAsync(predicate, transform)`](#whenasyncpredicate-transform) | Creates a function that awaits a predicate and conditionally transforms one input. | **`Function`** — `(value: V) => Promise<Awaited<V \| T>>`<br><br>A wrapper resolving to the awaited transform result for a truthy decision, or the awaited original input otherwise. |
-| [`ifElse(predicate, onTrue, onFalse)`](#ifelsepredicate-ontrue-onfalse) | Creates a function that evaluates a predicate once and calls the matching branch. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the result of `onTrue` for a truthy predicate result, or `onFalse` otherwise. |
-| [`ifElseAsync(predicate, onTrue, onFalse)`](#ifelseasyncpredicate-ontrue-onfalse) | Creates a function that awaits a predicate and runs only the matching branch. | **`Function`** — `(...args) => Promise<Awaited<T>>`<br><br>A wrapper resolving to the awaited result of `onTrue` for a truthy decision, or `onFalse` otherwise. |
-| [`repeatAsync(fn, count?, ...args)`](#repeatasyncfn-count-args) | Invokes a callback a specified number of times sequentially, awaiting each result. | **`Promise<Awaited<T>[]>`**<br><br>A promise resolving to a fresh array of sequentially awaited callback results in invocation order. |
+| [`nor(...fns)`](#norfns) | Creates a predicate that determines whether all supplied predicates return falsy values. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if at least one predicate is supplied and all results are falsy; otherwise `false`. |
+| [`norAsync(...fns)`](#norasyncfns) | Creates a predicate that awaits results in order and determines whether all are falsy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` if at least one predicate is supplied and all awaited results are falsy; otherwise `false`. |
+| [`xor(...fns)`](#xorfns) | Creates a predicate that determines whether exactly one supplied predicate returns a truthy value. | **`Function`** — `(...args) => boolean`<br><br>A predicate returning `true` if exactly one result is truthy; otherwise `false`. |
+| [`xorAsync(...fns)`](#xorasyncfns) | Creates a predicate that awaits results in order and determines whether exactly one is truthy. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` for exactly one truthy result; it stops at the second truthy result and otherwise resolves to `false`. |
 
-**Attached variants and scheduler methods**
+**Conditional transformations**
 
 | API | Description | Returns |
 | --- | --- | --- |
-| [`pipe.async(...fns)`](#pipeasyncfns) | Creates a function that runs stages from left to right, awaiting each result. Alias of `pipeAsync`. | **`Function`** — `(...args) => Promise<Awaited<T> \| undefined>`<br><br>A pipeline whose promise resolves to the last awaited result, or `undefined` when there are no stages. |
-| [`attempt.result(fn, ...args)`](#attemptresultfn-args) | Invokes a callback synchronously and reports success or failure in a result object. Alias of `attemptResult`. | **`Result<T>`**<br><br>A fresh `{ ok: true, value }` object on success, or `{ ok: false, error }` on a synchronous throw. |
-| [`attempt.resultAsync(fn, ...args)`](#attemptresultasyncfn-args) | Invokes a callback, awaits its result and reports success or failure in a result object. Alias of `attemptResultAsync`. | **`Promise<Result<Awaited<T>>>`**<br><br>A promise resolving to a success object with the awaited value, or a failure object with the thrown or rejected value. |
-| [`attemptResult.async(fn, ...args)`](#attemptresultasyncfn-args) | Invokes a callback, awaits its result and reports success or failure in a result object. Alias of `attemptResultAsync`. | **`Promise<Result<Awaited<T>>>`**<br><br>A promise resolving to a success object with the awaited value, or a failure object with the thrown or rejected value. |
-| [`tap.async(observer)`](#tapasyncobserver) | Creates a function that awaits an observer before returning its input value. Alias of `tapAsync`. | **`Function`** — `(value: V) => Promise<Awaited<V>>`<br><br>A wrapper whose promise resolves to the input after the observer completes; promise inputs are unwrapped. |
-| [`and.async(...fns)`](#andasyncfns) | Creates a predicate that awaits results in order and determines whether all are truthy. Alias of `andAsync`. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate whose promise resolves to `true` if at least one predicate is supplied and all awaited results are truthy; otherwise `false`. |
-| [`or.async(...fns)`](#orasyncfns) | Creates a predicate that awaits results in order and determines whether any is truthy. Alias of `orAsync`. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate whose promise resolves to `true` if any awaited result is truthy; otherwise `false`. |
-| [`xor.async(...fns)`](#xorasyncfns) | Creates a predicate that awaits results in order and determines whether exactly one is truthy. Alias of `xorAsync`. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` for exactly one truthy result; it stops at the second truthy result and otherwise resolves to `false`. |
-| [`nor.async(...fns)`](#norasyncfns) | Creates a predicate that awaits results in order and determines whether all are falsy. Alias of `norAsync`. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate resolving to `true` if at least one predicate is supplied and all awaited results are falsy; otherwise `false`. |
-| [`not.async(fn)`](#notasyncfn) | Creates a predicate that awaits its callback result and negates its truthiness. Alias of `notAsync`. | **`Function`** — `(...args) => Promise<boolean>`<br><br>A predicate whose promise resolves to `true` if the awaited callback result is falsy; otherwise `false`. |
-| [`partial.right(fn, ...args)`](#partialrightfn-args) | Creates a function that appends saved arguments to each call without binding its receiver. Alias of `partialRight`. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the callback result after appending the saved arguments. |
-| [`when.async(predicate, transform)`](#whenasyncpredicate-transform) | Creates a function that awaits a predicate and conditionally transforms one input. Alias of `whenAsync`. | **`Function`** — `(value: V) => Promise<Awaited<V \| T>>`<br><br>A wrapper resolving to the awaited transform result for a truthy decision, or the awaited original input otherwise. |
-| [`ifElse.async(predicate, onTrue, onFalse)`](#ifelseasyncpredicate-ontrue-onfalse) | Creates a function that awaits a predicate and runs only the matching branch. Alias of `ifElseAsync`. | **`Function`** — `(...args) => Promise<Awaited<T>>`<br><br>A wrapper resolving to the awaited result of `onTrue` for a truthy decision, or `onFalse` otherwise. |
-| [`repeat.async(fn, count?, ...args)`](#repeatasyncfn-count-args) | Invokes a callback a specified number of times sequentially, awaiting each result. Alias of `repeatAsync`. | **`Promise<Awaited<T>[]>`**<br><br>A promise resolving to a fresh array of sequentially awaited callback results in invocation order. |
-| [`debounce().cancel()`](#debouncecancel) | Discards pending calls and resets scheduling, retaining the last completed result. | **`undefined`**<br><br>`undefined` after discarding pending work; the last completed result is retained. |
-| [`debounce().flush()`](#debounceflush) | Invokes eligible pending work immediately, or returns the last completed result. | **`T \| undefined`**<br><br>The result of eligible pending work run immediately, or the last completed result; `undefined` before any completion. |
-| [`debounce().pending()`](#debouncepending) | Determines whether a callback invocation is scheduled. | **`boolean`**<br><br>`true` if a callback invocation is scheduled; otherwise `false`, including a cooldown or in-flight promise alone. |
-| [`throttle().cancel()`](#throttlecancel) | Discards pending calls and resets scheduling, retaining the last completed result. | **`undefined`**<br><br>`undefined` after discarding pending work; the last completed result is retained. |
-| [`throttle().flush()`](#throttleflush) | Invokes eligible pending work immediately, or returns the last completed result. | **`T \| undefined`**<br><br>The result of eligible pending work run immediately, or the last completed result; `undefined` before any completion. |
-| [`throttle().pending()`](#throttlepending) | Determines whether a callback invocation is scheduled. | **`boolean`**<br><br>`true` if a callback invocation is scheduled; otherwise `false`, including a cooldown or in-flight promise alone. |
+| [`applyIf(value, condition, transform)`](#applyifvalue-condition-transform) | Applies a transformation immediately when the condition is `true` or the predicate returns a truthy value. | **`T \| V`**<br><br>The exact transformation result or original input; promises are not awaited. |
+| [`when(predicate, transform)`](#whenpredicate-transform) | Creates a function that transforms one value when the predicate returns a truthy result. | **`Function`** — `(value: V) => V \| T`<br><br>A wrapper returning the transform result for a truthy predicate result, or the original input otherwise. |
+| [`whenAsync(predicate, transform)`](#whenasyncpredicate-transform) | Creates a function that awaits a predicate and conditionally transforms one input. | **`Function`** — `(value: V) => Promise<Awaited<V \| T>>`<br><br>A wrapper resolving to the awaited transform result for a truthy decision, or the awaited original input otherwise. |
+| [`ifElse(predicate, onTrue, onFalse)`](#ifelsepredicate-ontrue-onfalse) | Creates a function that evaluates a predicate once and calls the matching branch. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the result of `onTrue` for a truthy predicate result, or `onFalse` otherwise. |
+| [`ifElseAsync(predicate, onTrue, onFalse)`](#ifelseasyncpredicate-ontrue-onfalse) | Creates a function that awaits a predicate and runs only the matching branch. | **`Function`** — `(...args) => Promise<Awaited<T>>`<br><br>A wrapper resolving to the awaited result of `onTrue` for a truthy decision, or `onFalse` otherwise. |
 
-Examples containing `await` are intended for an async function or an ES module.
-Examples use modern JavaScript syntax; the object-spread and native
-`AbortController` examples need a host that supports those features even when the
-library itself works on an older runtime.
+**Argument adaptation**
 
-**Attached variant identity**
+| API | Description | Returns |
+| --- | --- | --- |
+| [`spread(fn)`](#spreadfn) | Creates a function that passes an array-like input to its callback as individual arguments. | **`Function`** — `(args) => T`<br><br>A wrapper that spreads the supplied argument list and returns the callback result. |
+| [`partial(fn, ...args)`](#partialfn-args) | Creates a function that prepends saved arguments to each call without binding its receiver. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the callback result after prepending the saved arguments. |
+| [`partialRight(fn, ...args)`](#partialrightfn-args) | Creates a function that appends saved arguments to each call without binding its receiver. | **`Function`** — `(...args) => T`<br><br>A wrapper returning the callback result after appending the saved arguments. |
+| [`unary(fn)`](#unaryfn) | Creates a function that forwards exactly one argument to its callback. | **`Function`** — `(value) => T`<br><br>A wrapper returning the callback result after passing exactly one argument. |
 
-```javascript
-const {
-  pipe, pipeAsync, attempt, attemptResult, attemptResultAsync,
-  tap, tapAsync, and, andAsync, or, orAsync, not, notAsync,
-  xor, xorAsync, nor, norAsync, when, whenAsync, ifElse, ifElseAsync,
-  partial, partialRight, repeat, repeatAsync
-} = require('go-fns');
+**Execution and outcomes**
 
-pipe.async === pipeAsync;                    // => true
-attempt.result === attemptResult;            // => true
-attempt.resultAsync === attemptResultAsync;  // => true
-attemptResult.async === attemptResultAsync;  // => true
-tap.async === tapAsync;                      // => true
-and.async === andAsync;                      // => true
-or.async === orAsync;                        // => true
-not.async === notAsync;                      // => true
-xor.async === xorAsync;                      // => true
-nor.async === norAsync;                      // => true
-when.async === whenAsync;                    // => true
-ifElse.async === ifElseAsync;                // => true
-partial.right === partialRight;              // => true
-repeat.async === repeatAsync;                // => true
-```
+| API | Description | Returns |
+| --- | --- | --- |
+| [`result(value, ...args)`](#resultvalue-args) | Calls a function once with the supplied arguments, or returns a non-function value unchanged. | **`T \| V`**<br><br>The exact callback result or original value; promises are not awaited. |
+| [`attempt(fn, ...args)`](#attemptfn-args) | Invokes a callback synchronously and returns its result or the exact value it throws. | **`unknown`**<br><br>The callback result, or the exact value thrown synchronously. |
+| [`attemptResult(fn, ...args)`](#attemptresultfn-args) | Invokes a callback synchronously and reports success or failure in a result object. | **`Result<T>`**<br><br>A fresh `{ ok: true, value }` object on success, or `{ ok: false, error }` on a synchronous throw. |
+| [`attemptResultAsync(fn, ...args)`](#attemptresultasyncfn-args) | Invokes a callback, awaits its result and reports success or failure in a result object. | **`Promise<Result<Awaited<T>>>`**<br><br>A promise resolving to a success object with the awaited value, or a failure object with the thrown or rejected value. |
+| [`once(fn)`](#oncefn) | Creates a function that invokes its callback at most once and caches the first outcome. | **`Function`** — `(...args) => T`<br><br>A wrapper that caches the first returned value or promise, or rethrows the first thrown value on subsequent calls. |
+| [`repeat(fn, count?, ...args)`](#repeatfn-count-args) | Invokes a callback a specified number of times synchronously and collects its results. | **`T[]`**<br><br>A fresh array containing each synchronous callback result in invocation order. |
+| [`repeatAsync(fn, count?, ...args)`](#repeatasyncfn-count-args) | Invokes a callback a specified number of times sequentially, awaiting each result. | **`Promise<Awaited<T>[]>`**<br><br>A promise resolving to a fresh array of sequentially awaited callback results in invocation order. |
+
+**Scheduling and cancellation**
+
+| API | Description | Returns |
+| --- | --- | --- |
+| [`delay(fn, milliseconds?, ...args)`](#delayfn-milliseconds-args) | Schedules a callback through the host's `setTimeout` and returns its timer handle. | **`TimerHandle`**<br><br>The native timeout handle: a browser number or a Node.js `Timeout` object. |
+| [`sleep(milliseconds?, options?)`](#sleepmilliseconds-options) | Creates a promise that resolves after a cancellable pause. | **`Promise<void>`**<br><br>A promise resolving to `undefined` after the timer, or rejecting if the pause is aborted. |
+| [`debounce(fn, milliseconds?, options?)`](#debouncefn-milliseconds-options) | Creates a function that combines a burst of calls using the latest arguments and receiver. | **`Function`** — `(...args) => T \| undefined`<br><br>A scheduled wrapper returning the most recent callback return value, including a pending promise, or `undefined` until the first successful return. Includes `cancel`, `flush` and `pending` methods. |
+| [`throttle(fn, milliseconds?, options?)`](#throttlefn-milliseconds-options) | Creates a function that limits callback invocation frequency while calls continue. | **`Function`** — `(...args) => T \| undefined`<br><br>A scheduled wrapper returning the most recent callback return value, including a pending promise, or `undefined` until the first successful return. Includes `cancel`, `flush` and `pending` methods. |
+| [`debounced.cancel()`](#debouncecancel) | Discards pending calls and resets scheduling, retaining the most recent callback return value. | **`undefined`**<br><br>`undefined` after discarding pending work; the most recent callback return value is retained. |
+| [`debounced.flush()`](#debounceflush) | Invokes eligible pending work immediately, or returns the most recent callback return value. | **`T \| undefined`**<br><br>The return value of eligible pending work run immediately, including a pending promise, or the previous value; `undefined` until the first successful return. |
+| [`debounced.pending()`](#debouncepending) | Checks whether a callback invocation is scheduled. | **`boolean`**<br><br>`true` if a callback invocation is scheduled; otherwise `false`, including a cooldown or in-flight promise alone. |
+| [`throttled.cancel()`](#throttlecancel) | Discards pending calls and resets scheduling, retaining the most recent callback return value. | **`undefined`**<br><br>`undefined` after discarding pending work; the most recent callback return value is retained. |
+| [`throttled.flush()`](#throttleflush) | Invokes eligible pending work immediately, or returns the most recent callback return value. | **`T \| undefined`**<br><br>The return value of eligible pending work run immediately, including a pending promise, or the previous value; `undefined` until the first successful return. |
+| [`throttled.pending()`](#throttlepending) | Checks whether a callback invocation is scheduled. | **`boolean`**<br><br>`true` if a callback invocation is scheduled; otherwise `false`, including a cooldown or in-flight promise alone. |
 
 <!-- prettier-ignore-end -->
 
@@ -124,13 +105,17 @@ The first stage receives all call arguments; each later stage receives the prece
 
 **Returns:** `Function` with signature `(...args) => T | undefined`. A pipeline that returns the last stage result, or `undefined` when there are no stages.
 
-**Errors:** `TypeError`: If a stage is neither a function, `null` nor `undefined`. Errors from later stage calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a stage is neither a function, `null` nor `undefined`.
+- Errors thrown by any stage propagate unchanged when the pipeline runs.
 
 **Examples**
 
 <!-- prettier-ignore -->
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { pipe } = require('go-fns');
 
 const floorThenRoot = pipe(Math.floor, Math.sqrt);
@@ -139,7 +124,7 @@ pipe(Math.floor)(4.5);                             // => 4
 pipe((a, b) => a + b, value => value * 2)(2, 3);   // => 10
 pipe(null, value => value + 1, undefined)(2);      // => 3
 pipe()(42);                                        // => undefined
-pipe(123);                                         // => throws TypeError
+assert.throws(() => pipe(123), TypeError);
 
 const context = { multiplier: 3 };
 const multiply = pipe(function (value) {
@@ -167,7 +152,10 @@ The returned function forwards its caller's `this` to the callback and returns p
 
 **Returns:** `Function` with signature `(args) => T`. A wrapper that spreads the supplied argument list and returns the callback result.
 
-**Errors:** `TypeError`: If `fn` is not a function, or a later argument list is primitive and non-nullish. Argument-list getter and callback errors propagate unchanged.
+**Errors**
+
+- `TypeError` if `fn` is not a function, or a later argument list is primitive and non-nullish.
+- Argument-list getter and callback errors propagate unchanged.
 
 **Examples**
 
@@ -206,12 +194,14 @@ The callback itself is its receiver; bind it to supply another `this`. Returned 
 <!-- prettier-ignore -->
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `fn` | `Function` | Required synchronous callback; the callback itself is its receiver. |
+| `fn` | `Function` | Required callback, invoked synchronously with itself as the receiver. |
 | `...args` | Callback parameter types | Arguments passed to the callback. |
 
 **Returns:** `unknown` — The callback result, or the exact value thrown synchronously.
 
-**Errors:** `TypeError`: If `fn` is not a function; validation happens outside the catch.
+**Errors**
+
+- `TypeError` if `fn` is not a function; validation happens outside the catch.
 
 **Examples**
 
@@ -253,7 +243,11 @@ Each call receives the same arguments with the callback itself as its receiver; 
 
 **Returns:** `T[]` — A fresh array containing each synchronous callback result in invocation order.
 
-**Errors:** `TypeError`: If `fn` is not a function or `count` is non-nullish and not a number. `RangeError`: If `count` is not an integer in the supported range. Callback errors stop further calls and propagate.
+**Errors**
+
+- `TypeError` if `fn` is not a function or `count` is non-nullish and not a number.
+- `RangeError` if `count` is not an integer in the supported range.
+- Callback errors stop further calls and propagate.
 
 **Examples**
 
@@ -298,7 +292,10 @@ Duration coercion, scheduling and the callback receiver follow the host timer. U
 
 **Returns:** `TimerHandle` — The native timeout handle: a browser number or a Node.js `Timeout` object.
 
-**Errors:** `TypeError`: If `fn` is not a function. Scheduling errors propagate; later callback errors are reported by the host.
+**Errors**
+
+- `TypeError` if `fn` is not a function.
+- Scheduling errors propagate; later callback errors are reported by the host.
 
 **Examples**
 
@@ -341,7 +338,10 @@ The first stage receives all call arguments; each later stage receives one await
 
 **Returns:** `Function` with signature `(...args) => Promise<Awaited<T> | undefined>`. A pipeline whose promise resolves to the last awaited result, or `undefined` when there are no stages.
 
-**Errors:** `TypeError`: If a stage is neither a function, `null` nor `undefined`. When called, the pipeline rejects with the original stage failure.
+**Errors**
+
+- `TypeError` if a stage is neither a function, `null` nor `undefined`.
+- When called, the pipeline rejects with the original stage failure.
 
 **Examples**
 
@@ -349,22 +349,26 @@ The first stage receives all call arguments; each later stage receives one await
 ```javascript
 const { pipeAsync } = require('go-fns');
 
-const loadTitles = pipeAsync(
-  async forumId => [
-    { forumId, title: 'Welcome to the community' },
-    { forumId, title: 'Local recommendations' }
-  ],
-  threads => threads.map(thread => thread.title),
-  titles => titles.sort()
-);
+async function main() {
+  const loadTitles = pipeAsync(
+    async forumId => [
+      { forumId, title: 'Welcome to the community' },
+      { forumId, title: 'Local recommendations' }
+    ],
+    threads => threads.map(thread => thread.title),
+    titles => titles.sort()
+  );
 
-await loadTitles('local-community');   // => ['Local recommendations', 'Welcome to the community']
+  await loadTitles('local-community');   // => ['Local recommendations', 'Welcome to the community']
 
-const doubleSum = pipeAsync(
-  null, async (a, b) => a + b, undefined, n => n * 2
-);
-await doubleSum(2, 3);                 // => 10
-await pipeAsync()(42);                 // => undefined
+  const doubleSum = pipeAsync(
+    null, async (a, b) => a + b, undefined, n => n * 2
+  );
+  await doubleSum(2, 3);                 // => 10
+  await pipeAsync()(42);                 // => undefined
+}
+
+main();
 ```
 
 **Notes**
@@ -374,7 +378,7 @@ invocation; later stages wait for the previous result. A throw or rejection stop
 the sequence and rejects with the original failure. Thenables are assimilated.
 There is no automatic retry, parallel execution or cancellation of stages.
 
-**Alias:** `pipe.async`. **Since:** 2.0.0.
+**Since:** 2.0.0.
 
 ---
 
@@ -389,12 +393,14 @@ Check `ok` to distinguish a returned value from a thrown value. The callback its
 <!-- prettier-ignore -->
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `fn` | `Function` | Required synchronous callback; the callback itself is its receiver. |
+| `fn` | `Function` | Required callback, invoked synchronously with itself as the receiver. |
 | `...args` | Callback parameter types | Arguments passed to the callback. |
 
 **Returns:** `Result<T>` — A fresh `{ ok: true, value }` object on success, or `{ ok: false, error }` on a synchronous throw.
 
-**Errors:** `TypeError`: If `fn` is not a function; invalid callbacks throw instead of producing a failure result.
+**Errors**
+
+- `TypeError` if `fn` is not a function; invalid callbacks throw instead of producing a failure result.
 
 **Examples**
 
@@ -424,8 +430,7 @@ A returned promise is the successful
 `value` itself; it is not awaited, and its later rejection is not caught. An invalid
 callback throws `TypeError` rather than becoming `{ ok: false }`.
 
-**Alias:** `attempt.result`. **Async variant:** `attemptResultAsync` or
-`attemptResult.async`. **Since:** 2.0.0.
+**Async variant:** `attemptResultAsync`. **Since:** 2.0.0.
 
 ---
 
@@ -445,7 +450,9 @@ The callback itself is its receiver. Callback throws, promise rejections and fai
 
 **Returns:** `Promise<Result<Awaited<T>>>` — A promise resolving to a success object with the awaited value, or a failure object with the thrown or rejected value.
 
-**Errors:** Rejects with `TypeError` if `fn` is not a function.
+**Errors**
+
+- Rejects with `TypeError` if `fn` is not a function.
 
 **Examples**
 
@@ -453,16 +460,20 @@ The callback itself is its receiver. Callback throws, promise rejections and fai
 ```javascript
 const { attemptResultAsync } = require('go-fns');
 
-const loadSettings = async userId => ({ userId, theme: 'dark' });
-const result = await attemptResultAsync(loadSettings, 'user-42');
-if (result.ok) {
-  console.log(result.value.theme);                       // => 'dark'
-} else {
-  console.error('Loading settings failed:', result.error);
+async function main() {
+  const loadSettings = async userId => ({ userId, theme: 'dark' });
+  const result = await attemptResultAsync(loadSettings, 'user-42');
+  if (result.ok) {
+    console.log(result.value.theme);                       // => 'dark'
+  } else {
+    console.error('Loading settings failed:', result.error);
+  }
+
+  const reason = { code: 'SETTINGS_UNAVAILABLE' };
+  await attemptResultAsync(() => Promise.reject(reason));  // => { ok: false, error: reason }
 }
 
-const reason = { code: 'SETTINGS_UNAVAILABLE' };
-await attemptResultAsync(() => Promise.reject(reason));  // => { ok: false, error: reason }
+main();
 ```
 
 **Notes**
@@ -471,13 +482,13 @@ Unlike callback failures, invalid callback
 configuration rejects that promise with `TypeError`; it does not resolve to a failed
 result. This operation is not a blanket never-rejects API.
 
-**Aliases:** `attempt.resultAsync`, `attemptResult.async`. **Since:** 2.0.0.
+**Since:** 2.0.0.
 
 ---
 
 ### `tap(observer)`
 
-Creates a function that calls an observer with one value and returns that value unchanged.
+Creates a function that calls an observer and returns the original input.
 
 The observer receives the caller's `this`. Its return value is ignored without awaiting. Object identity is preserved, and mutations made by the observer remain visible.
 
@@ -490,7 +501,10 @@ The observer receives the caller's `this`. Its return value is ignored without a
 
 **Returns:** `Function` with signature `(value: V) => V`. A wrapper that calls the observer and returns the exact input value or reference.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -519,7 +533,7 @@ listing.reviewed;                                                // => true
 Observer exceptions propagate. Observer
 promises are not awaited or handled; use `tapAsync` for asynchronous side effects.
 
-**Async variant:** `tapAsync` or `tap.async`. **Since:** 2.0.0.
+**Async variant:** `tapAsync`. **Since:** 2.0.0.
 
 ---
 
@@ -538,7 +552,10 @@ The observer receives exactly one input and the caller's `this`. A promise input
 
 **Returns:** `Function` with signature `(value: V) => Promise<Awaited<V>>`. A wrapper whose promise resolves to the input after the observer completes; promise inputs are unwrapped.
 
-**Errors:** `TypeError`: If `observer` is not a function. Later observer throws or rejections reject the wrapper promise.
+**Errors**
+
+- `TypeError` if `observer` is not a function.
+- Later observer throws or rejections reject the wrapper promise.
 
 **Examples**
 
@@ -547,18 +564,22 @@ The observer receives exactly one input and the caller's `this`. A promise input
 ```javascript
 const { pipeAsync, tapAsync } = require('go-fns');
 
-const audit = [];
-const saveListing = async listing => ({ ...listing, id: 'listing-42' });
-const recordAudit = async listing => { audit.push({ listingId: listing.id }); };
+async function main() {
+  const audit = [];
+  const saveListing = async listing => Object.assign({}, listing, { id: 'listing-42' });
+  const recordAudit = async listing => { audit.push({ listingId: listing.id }); };
 
-const publishListing = pipeAsync(
-  saveListing,
-  tapAsync(recordAudit),
-  listing => listing.id
-);
+  const publishListing = pipeAsync(
+    saveListing,
+    tapAsync(recordAudit),
+    listing => listing.id
+  );
 
-await publishListing({ title: 'Desk' });   // => 'listing-42'
-audit;                                     // => [{ listingId: 'listing-42' }]
+  await publishListing({ title: 'Desk' });   // => 'listing-42'
+  audit;                                     // => [{ listingId: 'listing-42' }]
+}
+
+main();
 ```
 
 **Notes**
@@ -567,7 +588,56 @@ The promise resolves only after the
 observer settles successfully. If called directly with a promise or thenable input,
 the observer receives that input unchanged, but returning it from the async wrapper
 naturally assimilates it: the final result is its resolved value, not the original
-promise's identity. **Alias:** `tap.async`. **Since:** 2.0.0.
+promise's identity. **Since:** 2.0.0.
+
+---
+
+### `result(value, ...args)`
+
+Calls a function once with the supplied arguments, or returns a non-function value unchanged.
+
+Use this for options that accept a fixed value or a function that computes one. A value whose JavaScript type is `function` is invoked once. Other values, including `null`, `undefined`, objects and promises, are returned unchanged; extra arguments are ignored for those values.
+
+**Parameters**
+
+<!-- prettier-ignore -->
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `value` | `Function` or any value | A callback to invoke once, or a non-function value to return unchanged. |
+| `...args` | any values | Raw positional arguments passed to the callback. |
+
+**Returns:** The exact callback result or original value. Objects, promises and returned functions preserve identity. Neither input arguments nor callback results are awaited, and returned functions are not invoked again.
+
+**Errors**
+
+- Propagates the exact value thrown by a callback.
+- Classes and revoked callable proxies fail when invoked.
+- Non-function values are valid inputs.
+
+**Examples**
+
+<!-- prettier-ignore -->
+```javascript
+const { result } = require('go-fns');
+const user = { name: 'Ada' };
+
+result('Hello', user);                       // => 'Hello'
+result(user => 'Hello ' + user.name, user);  // => 'Hello Ada'
+result((a, b) => a + b, 2, 3);               // => 5
+result(null);                                // => null
+
+const promise = Promise.resolve(7);
+result(promise) === promise;                 // => true
+result(() => promise) === promise;           // => true
+const inner = () => 7;
+result(() => inner) === inner;               // => true
+```
+
+**Notes**
+
+Callbacks are ordinary function calls: the caller's receiver is not forwarded. Strict callbacks receive `undefined`; non-strict callbacks retain JavaScript's normal receiver coercion. Bind methods that require an object receiver. Use `result(() => method.call(owner))` when explicit invocation is clearer.
+
+`result` returns a raw value and propagates errors. [`attemptResult`](#attemptresultfn-args) instead requires a callback and returns a success/failure object. TypeScript checks the callable branches of value/function unions; overloaded or structurally complex callbacks may need a single-signature wrapper. When explicitly passing `undefined` to a defaulted parameter, annotate any required callback parameters if inference cannot establish their types. Constructor-only values and unbound callbacks with explicit receiver requirements are rejected by the declarations. **Since:** 2.0.0.
 
 ---
 
@@ -588,7 +658,10 @@ The host timer may run late. An already-aborted signal rejects without schedulin
 
 **Returns:** `Promise<void>` — A promise resolving to `undefined` after the timer, or rejecting if the pause is aborted.
 
-**Errors:** Rejects with `TypeError` for invalid argument types or `RangeError` for unsupported durations. Signal and host-timer errors also reject the promise.
+**Errors**
+
+- Rejects with `TypeError` for invalid argument types or `RangeError` for unsupported durations.
+- Signal and host-timer errors also reject the promise.
 
 **Examples**
 
@@ -597,19 +670,24 @@ The host timer may run late. An already-aborted signal rejects without schedulin
 ```javascript
 const { sleep } = require('go-fns');
 
-// Resolves after a host timer.
-await sleep(1);                    // => undefined
+async function main() {
+  await sleep(1);                    // => undefined
+}
+
+main();
+```
+
+This ES module example uses a host with `AbortController` and support for `abort(reason)`.
+
+<!-- prettier-ignore -->
+```javascript
+import { sleep } from 'go-fns';
 
 const controller = new AbortController();
 const reason = new Error('The screen was closed');
 const pending = sleep(1000, { signal: controller.signal });
 controller.abort(reason);
-
-try {
-  await pending;
-} catch (error) {
-  console.log(error === reason);   // => true
-}
+console.log(await pending.catch(error => error === reason)); // => true
 ```
 
 **Notes**
@@ -618,7 +696,7 @@ Invalid arguments reject (`TypeError` for types,
 `RangeError` for unsupported numeric durations). An already-aborted signal rejects
 without starting a timer. Later cancellation rejects with the exact `signal.reason`
 and clears the timer. The abort listener is removed after success, cancellation or
-scheduling failure. Synthetic `abort` events do not cancel a still-live signal.
+scheduling failure. Synthetic `abort` events do not cancel a still-live signal. If an earlier listener suppresses the abort event, cancellation is detected when the timer fires and the wait still rejects with the exact reason. Cleanup failures do not replace an existing cancellation reason.
 
 Cancelling a wait does not cancel an unrelated network request or callback. To cancel
 another operation, that operation must separately support and receive a signal.
@@ -637,11 +715,15 @@ The first call supplies the arguments and `this`; later calls ignore their input
 <!-- prettier-ignore -->
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `fn` | `Function` | Required callback. The returned wrapper is an ordinary function, not a constructor. |
+| `fn` | `Function` | Required callback. |
 
 **Returns:** `Function` with signature `(...args) => T`. A wrapper that caches the first returned value or promise, or rethrows the first thrown value on subsequent calls.
 
-**Errors:** `TypeError`: If `fn` is not a function. `Error`: If the wrapper is called recursively before its first callback returns. An uncaught recursive-call error becomes the cached failure.
+**Errors**
+
+- `TypeError` if `fn` is not a function.
+- `Error`: If the wrapper is called recursively before its first callback returns.
+- An uncaught recursive-call error becomes the cached failure.
 
 **Examples**
 
@@ -650,26 +732,30 @@ The first call supplies the arguments and `this`; later calls ignore their input
 ```javascript
 const { once } = require('go-fns');
 
-const getFormatter = once(() => new Intl.NumberFormat('en-NZ', {
-  style: 'currency',
-  currency: 'NZD'
-}));
+async function main() {
+  const getFormatter = once(() => new Intl.NumberFormat('en-NZ', {
+    style: 'currency',
+    currency: 'NZD'
+  }));
 
-getFormatter() === getFormatter();   // => true
-getFormatter().format(12.5);         // => '$12.50'
+  getFormatter() === getFormatter();   // => true
+  getFormatter().resolvedOptions().currency; // => 'NZD'
 
-let calls = 0;
-const loadSettings = once(async () => {
-  calls++;
-  return { theme: 'dark' };
-});
+  let calls = 0;
+  const loadSettings = once(async () => {
+    calls++;
+    return { theme: 'dark' };
+  });
 
-const first = loadSettings();
-const second = loadSettings();
-// The wrapper returns the exact same promise.
-first === second;                    // => true
-await first;
-calls;                               // => 1
+  const first = loadSettings();
+  const second = loadSettings();
+  // The wrapper returns the exact same promise.
+  first === second;                    // => true
+  await first;
+  calls;                               // => 1
+}
+
+main();
 ```
 
 **Notes**
@@ -704,9 +790,13 @@ Defaults to trailing execution after calls stop. Optional `maxWait` limits postp
 | `options.trailing?` | `boolean` | `true` | Invoke after activity stops. |
 | `options.maxWait?` | `number` | `undefined` | Optional finite duration at least `milliseconds` that caps postponement. |
 
-**Returns:** `Function` with signature `(...args) => T | undefined`. A scheduled wrapper returning the last completed result or `undefined`, with `cancel`, `flush` and `pending` methods.
+**Returns:** `Function` with signature `(...args) => T | undefined`. A scheduled wrapper returning the most recent callback return value, including a pending promise, or `undefined` until the first successful return. Includes `cancel`, `flush` and `pending` methods.
 
-**Errors:** `TypeError`: If callback, duration or option types are invalid. `RangeError`: If a duration is outside its supported range. Immediate callback errors propagate; timer callback errors go to the host.
+**Errors**
+
+- `TypeError` if callback, duration or option types are invalid.
+- `RangeError` if a duration is outside its supported range.
+- Immediate callback errors propagate; timer callback errors go to the host.
 
 **Examples**
 
@@ -736,20 +826,23 @@ updateSearch.cancel(); // Cleanup; does not undo a completed callback.
 **Returned wrapper methods**
 
 The methods below belong to the returned `debounce` wrapper. Each takes no
-arguments and can be called separately from the wrapper. A completed callback
-means the callback has returned; it does not mean a returned promise has settled.
+arguments and can be called separately from the wrapper. A callback return value is available as soon as the callback returns, even when it is a promise that has not settled.
 
 ---
 
 ### `debounce().cancel()`
 
-Discards pending calls and resets scheduling, retaining the last completed result. Cancelling does not undo a completed callback.
+Discards pending calls and resets scheduling, retaining the most recent callback return value. Cancelling does not undo a completed callback.
 
-**Parameters:** None.
+**Parameters**
+
+No parameters.
 
 **Returns:** `undefined` — `undefined` after discarding scheduled work. Work already started continues.
 
-**Errors:** Host timer errors propagate.
+**Errors**
+
+- Host timer errors propagate.
 
 **Examples**
 
@@ -767,13 +860,18 @@ scheduled.pending();           // => false
 
 ### `debounce().flush()`
 
-Invokes eligible pending work immediately, or returns the last completed result. A leading-only cooldown remains active.
+Invokes eligible pending work immediately, or returns the most recent callback return value. A leading-only cooldown remains active.
 
-**Parameters:** None.
+**Parameters**
 
-**Returns:** `T | undefined` — The callback result when pending work runs, or the previous result otherwise; `undefined` before any successful completion.
+No parameters.
 
-**Errors:** Callback, clock and host timer errors propagate. Returned promises are not awaited or caught.
+**Returns:** `T | undefined` — The callback return value when pending work runs, including a pending promise, or the previous value otherwise; `undefined` until the first successful return.
+
+**Errors**
+
+- Callback, clock and host timer errors propagate.
+- Returned promises are not awaited or caught.
 
 **Examples**
 
@@ -791,9 +889,11 @@ scheduled.pending();           // => false
 
 ### `debounce().pending()`
 
-Determines whether a callback invocation is scheduled.
+Checks whether a callback invocation is scheduled.
 
-**Parameters:** None.
+**Parameters**
+
+No parameters.
 
 **Returns:** `boolean` — `true` if a callback invocation is scheduled; otherwise `false`. A leading-only cooldown or an in-flight promise alone returns `false`.
 
@@ -832,9 +932,13 @@ Defaults to leading and trailing execution; a lone leading call is not repeated.
 | `options.leading?` | `boolean` | `true` | Invoke on the leading edge. |
 | `options.trailing?` | `boolean` | `true` | Invoke on the trailing edge. |
 
-**Returns:** `Function` with signature `(...args) => T | undefined`. A scheduled wrapper returning the last completed result or `undefined`, with `cancel`, `flush` and `pending` methods.
+**Returns:** `Function` with signature `(...args) => T | undefined`. A scheduled wrapper returning the most recent callback return value, including a pending promise, or `undefined` until the first successful return. Includes `cancel`, `flush` and `pending` methods.
 
-**Errors:** `TypeError`: If callback, duration or option types are invalid. `RangeError`: If the duration is outside its supported range. Immediate callback errors propagate; timer callback errors go to the host.
+**Errors**
+
+- `TypeError` if callback, duration or option types are invalid.
+- `RangeError` if the duration is outside its supported range.
+- Immediate callback errors propagate; timer callback errors go to the host.
 
 **Examples**
 
@@ -851,7 +955,7 @@ const savePosition = throttle(position => {
 
 savePosition(10); // Runs on the leading edge.
 savePosition(20);
-savePosition(30); // Replaces the pending input, not the completed result.
+savePosition(30); // Replaces the pending input, not the previous return value.
 console.log(savedPositions);         // => [10]
 
 // A deliberate final flush, e.g. when finishing an interaction.
@@ -863,20 +967,23 @@ savePosition.cancel();
 **Returned wrapper methods**
 
 The methods below belong to the returned `throttle` wrapper. Each takes no
-arguments and can be called separately from the wrapper. A completed callback
-means the callback has returned; it does not mean a returned promise has settled.
+arguments and can be called separately from the wrapper. A callback return value is available as soon as the callback returns, even when it is a promise that has not settled.
 
 ---
 
 ### `throttle().cancel()`
 
-Discards pending calls and resets scheduling, retaining the last completed result. Cancelling does not undo a completed callback.
+Discards pending calls and resets scheduling, retaining the most recent callback return value. Cancelling does not undo a completed callback.
 
-**Parameters:** None.
+**Parameters**
+
+No parameters.
 
 **Returns:** `undefined` — `undefined` after discarding scheduled work. Work already started continues.
 
-**Errors:** Host timer errors propagate.
+**Errors**
+
+- Host timer errors propagate.
 
 **Examples**
 
@@ -894,13 +1001,18 @@ scheduled.pending();           // => false
 
 ### `throttle().flush()`
 
-Invokes eligible pending work immediately, or returns the last completed result. A leading-only cooldown remains active.
+Invokes eligible pending work immediately, or returns the most recent callback return value. A leading-only cooldown remains active.
 
-**Parameters:** None.
+**Parameters**
 
-**Returns:** `T | undefined` — The callback result when pending work runs, or the previous result otherwise; `undefined` before any successful completion.
+No parameters.
 
-**Errors:** Callback, clock and host timer errors propagate. Returned promises are not awaited or caught.
+**Returns:** `T | undefined` — The callback return value when pending work runs, including a pending promise, or the previous value otherwise; `undefined` until the first successful return.
+
+**Errors**
+
+- Callback, clock and host timer errors propagate.
+- Returned promises are not awaited or caught.
 
 **Examples**
 
@@ -918,9 +1030,11 @@ scheduled.pending();           // => false
 
 ### `throttle().pending()`
 
-Determines whether a callback invocation is scheduled.
+Checks whether a callback invocation is scheduled.
 
-**Parameters:** None.
+**Parameters**
+
+No parameters.
 
 **Returns:** `boolean` — `true` if a callback invocation is scheduled; otherwise `false`. A leading-only cooldown or an in-flight promise alone returns `false`.
 
@@ -958,7 +1072,10 @@ The returned function forwards its caller's `this` to the callback and returns p
 
 **Returns:** `Function` with signature `(...args) => T`. A wrapper returning the callback result after prepending the saved arguments.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -992,7 +1109,10 @@ The returned function forwards its caller's `this` to the callback and returns p
 
 **Returns:** `Function` with signature `(...args) => T`. A wrapper returning the callback result after appending the saved arguments.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -1009,8 +1129,6 @@ const formattedListings = [{ title: 'Bicycle' }, { title: 'Helmet' }]
   .map(unary(prettyJson));
 console.log(formattedListings.length);   // => 2
 ```
-
-**Alias:** `partial.right`.
 
 ---
 
@@ -1029,7 +1147,10 @@ The returned function forwards its caller's `this` to the callback and returns p
 
 **Returns:** `Function` with signature `(value) => T`. A wrapper returning the callback result after passing exactly one argument.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -1041,6 +1162,54 @@ const { unary } = require('go-fns');
 const numbers = ['10', '20', '30'].map(unary(parseInt));
 console.log(numbers);          // => [10, 20, 30]
 ```
+
+---
+
+### `applyIf(value, condition, transform)`
+
+Applies a transformation immediately when the condition is `true` or the predicate returns a truthy value. Otherwise, returns the exact input.
+
+Use `applyIf` for one immediate operation and [`when`](#whenpredicate-transform) to create a reusable transformation. Both use JavaScript truthiness for predicate results.
+
+**Parameters**
+
+<!-- prettier-ignore -->
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `value` | `unknown` | Input passed unchanged to the predicate and transformation. |
+| `condition` | `boolean \| Function` | Required flag or predicate. Predicate results use truthiness. |
+| `transform` | `Function` | Required transformation, validated even when the condition is false. |
+
+**Returns:** `T | V` — The transformation result for a truthy decision; otherwise the exact original input. Objects, functions, promises and thenables retain identity.
+
+**Errors**
+
+- `TypeError` if the condition is neither a primitive boolean nor a function, or the transform is not a function. Both are validated before callbacks run.
+- Predicate and transformation errors propagate unchanged.
+
+**Examples**
+
+<!-- prettier-ignore -->
+```javascript
+import { applyIf } from 'go-fns';
+
+applyIf('42', true, Number);                         // => 42
+applyIf('42', false, Number);                        // => '42'
+applyIf('42', value => value.length, Number);        // => 42
+
+const settings = { theme: 'dark' };
+applyIf(settings, false, () => ({})) === settings;   // => true
+```
+
+**Callback behaviour**
+
+A predicate runs once with the original value. The transform runs once only for a truthy decision. Both receive exactly one argument and the caller's exact `this`; bound callbacks retain their bound receiver. A skipped transformation does not inspect or coerce the input. Mutations made by a predicate remain visible to the transform.
+
+Predicate promises are truthy and are not awaited. A transformation's result is returned unchanged without awaiting it or calling a returned function. Use [`whenAsync`](#whenasyncpredicate-transform) for awaited decisions.
+
+**TypeScript**
+
+Literal `true` selects the transformation result type; literal `false` preserves the input type. A dynamic boolean or predicate includes both possible results. Callbacks retain the input type and explicit receiver requirements.
 
 ---
 
@@ -1060,7 +1229,10 @@ When called, the wrapper evaluates the predicate once. Both callbacks receive ex
 
 **Returns:** `Function` with signature `(value: V) => V | T`. A wrapper returning the transform result when the predicate is truthy; otherwise the original input.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -1095,47 +1267,55 @@ The predicate starts immediately when the wrapper is called and its result is aw
 
 **Returns:** `Function` with signature `(value: V) => Promise<Awaited<V | T>>`. A wrapper resolving to the awaited transform result for a truthy decision, or the awaited original input otherwise. It always returns a promise, including for synchronous callbacks.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if either required callback is not a function, including a transform that would never run. Callback throws, rejected results and failed thenable assimilation reject the wrapper's promise with the exact failure value.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if either required callback is not a function, including a transform that would never run.
+- Callback throws, rejected results and failed thenable assimilation reject the wrapper's promise with the exact failure value.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { when, whenAsync } = require('go-fns');
-const normaliseTitle = whenAsync(
-  async title => title.trim().length === 0,
-  () => 'Untitled listing'
-);
-await normaliseTitle('   ');                   // => 'Untitled listing'
-await normaliseTitle('Mountain bike');         // => 'Mountain bike'
-when.async === whenAsync;                     // => true
-whenAsync(() => false, null);                  // => throws TypeError
 
-const input = Promise.resolve(42);
-let receivedInput;
-const keepInput = whenAsync(
-  value => { receivedInput = value; return false; },
-  () => 0
-);
-const output = keepInput(input);
-receivedInput === input;                      // => true
-output === input;                             // => false
-await output;                                 // => 42
+async function main() {
+  const normaliseTitle = whenAsync(
+    async title => title.trim().length === 0,
+    () => 'Untitled listing'
+  );
+  await normaliseTitle('   ');                       // => 'Untitled listing'
+  await normaliseTitle('Mountain bike');             // => 'Mountain bike'
+  assert.throws(() => whenAsync(() => false, null), TypeError);
 
-const argumentCounts = [];
-const fillMissing = whenAsync(
-  function (value) { argumentCounts.push(arguments.length); return value === undefined; },
-  function (value) { argumentCounts.push(arguments.length); return this.fallback; }
-);
-await fillMissing.call({ fallback: 'missing' }); // => 'missing'
-argumentCounts;                                // => [1, 1]
+  const input = Promise.resolve(42);
+  let receivedInput;
+  const keepInput = whenAsync(
+    value => { receivedInput = value; return false; },
+    () => 0
+  );
+  const output = keepInput(input);
+  receivedInput === input;                           // => true
+  output === input;                                  // => false
+  await output;                                      // => 42
+
+  const argumentCounts = [];
+  const fillMissing = whenAsync(
+    function (value) { argumentCounts.push(arguments.length); return value === undefined; },
+    function (value) { argumentCounts.push(arguments.length); return this.fallback; }
+  );
+  await fillMissing.call({ fallback: 'missing' });   // => 'missing'
+  argumentCounts;                                    // => [1, 1]
+}
+
+main();
 ```
 
 **Notes**
 
 On the falsy path the async wrapper returns the original input, so promise and thenable inputs are assimilated by its returned promise. A non-thenable object keeps its identity after awaiting; a promise input does not retain its promise identity. The transform starts only after the predicate has been awaited, even for a synchronous result. Concurrent wrapper invocations remain independent. Async decisions do not provide TypeScript type-guard or complement narrowing.
 
-**Since:** 2.0.0. **Alias:** [`when.async`](#whenasyncpredicate-transform), the same function object.
+**Since:** 2.0.0.
 
 ---
 
@@ -1156,7 +1336,10 @@ All call arguments and the caller's `this` reach the predicate and selected bran
 
 **Returns:** `Function` with signature `(...args) => T`. A wrapper returning the result of `onTrue` for a truthy predicate result, or `onFalse` otherwise.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -1192,49 +1375,57 @@ The predicate starts immediately when the wrapper is called. Its result is await
 
 **Returns:** `Function` with signature `(...args) => Promise<Awaited<T>>`. A wrapper resolving to the awaited result of the selected branch. It always returns a promise, including for synchronous decisions, branch results and throws.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if any required callback is not a function, including an unselected branch. A predicate or selected-branch throw, rejected result or failed thenable assimilation rejects the wrapper's promise with the exact failure value; a failed predicate prevents both branches from running.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if any required callback is not a function, including an unselected branch.
+- A predicate or selected-branch throw, rejected result or failed thenable assimilation rejects the wrapper's promise with the exact failure value; a failed predicate prevents both branches from running.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { andAsync, ifElse, ifElseAsync, norAsync, whenAsync } = require('go-fns');
-const canPublish = andAsync(
-  listing => listing.title.length > 0,
-  norAsync(async listing => listing.blocked, listing => listing.archived)
-);
-const addCategory = whenAsync(
-  async listing => !listing.category,
-  listing => ({ ...listing, category: 'general' })
-);
-const describeListing = ifElseAsync(
-  canPublish,
-  async listing => listing.title + ' ready in ' + listing.category,
-  listing => listing.title + ' needs review'
-);
-const listing = await addCategory({ title: 'Mountain bike', blocked: false, archived: false });
-await describeListing(listing);                          // => 'Mountain bike ready in general'
-await describeListing({ ...listing, blocked: true });    // => 'Mountain bike needs review'
-ifElse.async === ifElseAsync;                            // => true
-ifElseAsync(() => true, () => 'yes', undefined);          // => throws TypeError
 
-const calls = [];
-const choose = ifElseAsync(
-  function (left, right) { calls.push('predicate'); return left + right === this.total; },
-  async function (left, right) { calls.push('yes'); return this.total + left + right; },
-  function () { calls.push('no'); return -1; }
-);
-const result = choose.call({ total: 5 }, 2, 3);
-calls;                                                  // => ['predicate']
-await result;                                           // => 10
-calls;                                                  // => ['predicate', 'yes']
+async function main() {
+  const canPublish = andAsync(
+    listing => listing.title.length > 0,
+    norAsync(async listing => listing.blocked, listing => listing.archived)
+  );
+  const addCategory = whenAsync(
+    async listing => !listing.category,
+    listing => Object.assign({}, listing, { category: 'general' })
+  );
+  const describeListing = ifElseAsync(
+    canPublish,
+    async listing => listing.title + ' ready in ' + listing.category,
+    listing => listing.title + ' needs review'
+  );
+  const listing = await addCategory({ title: 'Mountain bike', blocked: false, archived: false });
+  await describeListing(listing);                        // => 'Mountain bike ready in general'
+  await describeListing(Object.assign({}, listing, { blocked: true })); // => 'Mountain bike needs review'
+  assert.throws(() => ifElseAsync(() => true, () => 'yes', undefined), TypeError);
+
+  const calls = [];
+  const choose = ifElseAsync(
+    function (left, right) { calls.push('predicate'); return left + right === this.total; },
+    async function (left, right) { calls.push('yes'); return this.total + left + right; },
+    function () { calls.push('no'); return -1; }
+  );
+  const result = choose.call({ total: 5 }, 2, 3);
+  calls;                                                 // => ['predicate']
+  await result;                                          // => 10
+  calls;                                                 // => ['predicate', 'yes']
+}
+
+main();
 ```
 
 **Notes**
 
 The selected branch starts only after the predicate result has been awaited, even if that result is synchronous. Its result is also awaited. Concurrent wrapper invocations remain independent. Async decisions do not narrow branch input types; use explicit checks or typed adapters when a branch needs a narrower type.
 
-**Since:** 2.0.0. **Alias:** [`ifElse.async`](#ifelseasyncpredicate-ontrue-onfalse), the same function object.
+**Since:** 2.0.0.
 
 ---
 
@@ -1255,7 +1446,9 @@ Each call receives the same arguments with the callback itself as its receiver; 
 
 **Returns:** `Promise<Awaited<T>[]>` — A promise resolving to a fresh array of sequentially awaited callback results in invocation order.
 
-**Errors:** Rejects with `TypeError` for an invalid callback or non-nullish non-number count, `RangeError` for an unsupported count, or the original callback failure.
+**Errors**
+
+- Rejects with `TypeError` for an invalid callback or non-nullish non-number count, `RangeError` for an unsupported count, or the original callback failure.
 
 **Examples**
 
@@ -1263,20 +1456,34 @@ Each call receives the same arguments with the callback itself as its receiver; 
 ```javascript
 const { repeatAsync } = require('go-fns');
 
-// A stand-in for a stateful paginated reader: only one read may run at a time.
-let page = 0;
-async function readNextPage() {
-  return { page: ++page };
+async function main() {
+  // A stand-in for a stateful paginated reader: only one read may run at a time.
+  let page = 0;
+  async function readNextPage() {
+    return { page: ++page };
+  }
+  const pages = await repeatAsync(readNextPage, 3);
+  console.log(pages);            // => [{ page: 1 }, { page: 2 }, { page: 3 }]
 }
-const pages = await repeatAsync(readNextPage, 3);
-console.log(pages);            // => [{ page: 1 }, { page: 2 }, { page: 3 }]
-```
 
-**Alias:** `repeat.async`.
+main();
+```
 
 ## Logic
 
-All logical helpers synchronously create predicate functions and validate every supplied entry before any callback runs. Synchronous predicates return `true` or `false` using JavaScript truthiness. `andAsync`, `orAsync`, `xorAsync`, `norAsync` and `notAsync` always return a promise for a boolean when their predicates are called, using the truthiness of awaited callback results. Multi-predicate helpers ignore `null` and `undefined`; `not` and `notAsync` require a function.
+All logical helpers synchronously create predicate functions and validate every supplied entry during construction. Call the returned predicate to evaluate the callbacks with the same arguments and receiver. Synchronous predicates use the truthiness of each callback's return value. Async predicates await each reached callback result before testing its truthiness and resolve to a boolean.
+
+Multi-predicate helpers evaluate from left to right and skip later callbacks once the outcome is decided.
+
+<!-- prettier-ignore -->
+| Helpers | Short-circuit trigger | Result |
+| --- | --- | --- |
+| `and`, `andAsync` | First falsy result | `false` |
+| `or`, `orAsync` | First truthy result | `true` |
+| `nor`, `norAsync` | First truthy result | `false` |
+| `xor`, `xorAsync` | Second truthy result | `false` |
+
+`xor` and `xorAsync` succeed only when **exactly one** result is truthy. For all four pairs, an empty or all-nullish list produces a predicate that returns or resolves to `false`. The factories skip `null` and `undefined` entries. `not` and `notAsync` require a callback and negate its result's truthiness.
 
 ### `and(...fns)`
 
@@ -1293,7 +1500,10 @@ Stops at the first falsy result. The returned predicate forwards all call argume
 
 **Returns:** `Function` with signature `(...args) => boolean`. A predicate returning `true` if at least one predicate is supplied and all results are truthy; otherwise `false`.
 
-**Errors:** `TypeError`: If an entry is neither a function, `null` nor `undefined`. All entries are validated before evaluation; later callback errors propagate.
+**Errors**
+
+- `TypeError` if an entry is neither a function, `null` nor `undefined`.
+- All entries are validated before evaluation; later callback errors propagate.
 
 **Examples**
 
@@ -1330,47 +1540,55 @@ The returned predicate awaits each callback result from left to right, stopping 
 
 **Returns:** `Function` with signature `(...args) => Promise<boolean>`. A predicate whose promise resolves to `true` if at least one predicate is supplied and all awaited results are truthy; otherwise `false`.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier predicate would short-circuit. A callback throw or rejected result rejects the returned predicate's promise with the exact same value and prevents later callbacks from running.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier predicate would short-circuit.
+- A callback throw or rejected result rejects the returned predicate's promise with the exact same value and prevents later callbacks from running.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { and, andAsync } = require('go-fns');
-const isPositive = value => value > 0;
-const isBelowTen = async value => value < 10;
 
-await andAsync(isPositive, isBelowTen)(3);       // => true
-await andAsync(isPositive, isBelowTen)(12);      // => false
-await andAsync(null, isPositive, undefined)(3);  // => true
-await andAsync()();                              // => false
-await andAsync(null, undefined)();               // => false
-andAsync(() => false, 123);                      // => throws TypeError
-and.async === andAsync;                          // => true
+async function main() {
+  const isPositive = value => value > 0;
+  const isBelowTen = async value => value < 10;
 
-const calls = [];
-const check = andAsync(
-  value => { calls.push('first'); return value > 0; },
-  async value => { calls.push('second'); return value < 10; },
-  () => { calls.push('third'); return true; }
-);
-const outcome = check(12);
-calls;                                           // => ['first']
-await outcome;                                   // => false
-calls;                                           // => ['first', 'second']
+  await andAsync(isPositive, isBelowTen)(3);       // => true
+  await andAsync(isPositive, isBelowTen)(12);      // => false
+  await andAsync(null, isPositive, undefined)(3);  // => true
+  await andAsync()();                              // => false
+  await andAsync(null, undefined)();               // => false
+  assert.throws(() => andAsync(() => false, 123), TypeError);
 
-const sameArguments = andAsync(
-  function (left, right) { return left + right === this.total; },
-  async function (left, right) { return left < this.total && right < this.total; }
-);
-await sameArguments.call({ total: 5 }, 2, 3);    // => true
+  const calls = [];
+  const check = andAsync(
+    value => { calls.push('first'); return value > 0; },
+    async value => { calls.push('second'); return value < 10; },
+    () => { calls.push('third'); return true; }
+  );
+  const outcome = check(12);
+  calls;                                           // => ['first']
+  await outcome;                                   // => false
+  calls;                                           // => ['first', 'second']
+
+  const sameArguments = andAsync(
+    function (left, right) { return left + right === this.total; },
+    async function (left, right) { return left < this.total && right < this.total; }
+  );
+  await sameArguments.call({ total: 5 }, 2, 3);    // => true
+}
+
+main();
 ```
 
 **Notes**
 
 The first reached callback starts during invocation. Each later callback starts only after the preceding result has been awaited, even when it is a synchronous value. Calls within one evaluation are sequential; concurrent wrapper invocations remain independent. See [Asynchronous predicates](#asynchronous-predicates) for use with synchronous callback APIs.
 
-**Since:** 2.0.0. **Alias:** [`and.async`](#andasyncfns), the same function object.
+**Since:** 2.0.0.
 
 ---
 
@@ -1389,7 +1607,10 @@ Stops at the first truthy result. The returned predicate forwards all call argum
 
 **Returns:** `Function` with signature `(...args) => boolean`. A predicate returning `true` if any result is truthy; otherwise `false`.
 
-**Errors:** `TypeError`: If an entry is neither a function, `null` nor `undefined`. All entries are validated before evaluation; later callback errors propagate.
+**Errors**
+
+- `TypeError` if an entry is neither a function, `null` nor `undefined`.
+- All entries are validated before evaluation; later callback errors propagate.
 
 **Examples**
 
@@ -1426,39 +1647,47 @@ The returned predicate awaits each callback result from left to right, stopping 
 
 **Returns:** `Function` with signature `(...args) => Promise<boolean>`. A predicate whose promise resolves to `true` if any awaited result is truthy; otherwise `false`.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier predicate would short-circuit. A callback throw or rejected result rejects the returned predicate's promise with the exact same value and prevents later callbacks from running.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier predicate would short-circuit.
+- A callback throw or rejected result rejects the returned predicate's promise with the exact same value and prevents later callbacks from running.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { or, orAsync } = require('go-fns');
-const isText = value => typeof value === 'string';
-const isNumber = async value => typeof value === 'number';
 
-await orAsync(isText, isNumber)(2);                // => true
-await orAsync(isText, isNumber)(false);            // => false
-await orAsync(null, isText, undefined)('hello');   // => true
-await orAsync()();                                 // => false
-await orAsync(null, undefined)();                  // => false
-orAsync(() => true, 123);                          // => throws TypeError
-or.async === orAsync;                              // => true
+async function main() {
+  const isText = value => typeof value === 'string';
+  const isNumber = async value => typeof value === 'number';
 
-const calls = [];
-const lookup = orAsync(
-  () => { calls.push('cache'); return ''; },
-  async () => { calls.push('remote'); return 'found'; },
-  () => { calls.push('fallback'); return true; }
-);
-await lookup();                                    // => true
-calls;                                             // => ['cache', 'remote']
+  await orAsync(isText, isNumber)(2);                // => true
+  await orAsync(isText, isNumber)(false);            // => false
+  await orAsync(null, isText, undefined)('hello');   // => true
+  await orAsync()();                                 // => false
+  await orAsync(null, undefined)();                  // => false
+  assert.throws(() => orAsync(() => true, 123), TypeError);
+
+  const calls = [];
+  const lookup = orAsync(
+    () => { calls.push('cache'); return ''; },
+    async () => { calls.push('remote'); return 'found'; },
+    () => { calls.push('fallback'); return true; }
+  );
+  await lookup();                                    // => true
+  calls;                                             // => ['cache', 'remote']
+}
+
+main();
 ```
 
 **Notes**
 
 The first reached callback starts during invocation. Each later callback starts only after the preceding result has been awaited, even when it is a synchronous value. Calls within one evaluation are sequential; concurrent wrapper invocations remain independent. See [Asynchronous predicates](#asynchronous-predicates) for use with synchronous callback APIs.
 
-**Since:** 2.0.0. **Alias:** [`or.async`](#orasyncfns), the same function object.
+**Since:** 2.0.0.
 
 ---
 
@@ -1466,7 +1695,7 @@ The first reached callback starts during invocation. Each later callback starts 
 
 Creates a predicate that determines whether exactly one supplied predicate returns a truthy value.
 
-Stops at the second truthy result. Three truthy results still produce `false`; this is not odd-parity XOR. The returned predicate forwards all call arguments and the caller's `this`. Promise results are truthy and are never awaited. Nullish predicates are skipped; an empty list returns `false` when called.
+Stops at the second truthy result. Even if all three supplied predicates would return truthy values, the result is `false` and the third predicate is skipped. The returned predicate forwards all call arguments and the caller's `this`. Promise results are truthy and are never awaited. Nullish predicates are skipped. With no remaining predicates, the returned predicate returns `false`.
 
 **Parameters**
 
@@ -1477,7 +1706,10 @@ Stops at the second truthy result. Three truthy results still produce `false`; t
 
 **Returns:** `Function` with signature `(...args) => boolean`. A predicate returning `true` if exactly one result is truthy; otherwise `false`.
 
-**Errors:** `TypeError`: If an entry is neither a function, `null` nor `undefined`. All entries are validated before evaluation; later callback errors propagate.
+**Errors**
+
+- `TypeError` if an entry is neither a function, `null` nor `undefined`.
+- All entries are validated before evaluation; later callback errors propagate.
 
 **Examples**
 
@@ -1486,7 +1718,9 @@ Stops at the second truthy result. Three truthy results still produce `false`; t
 ```javascript
 const { xor } = require('go-fns');
 
-xor(() => false, () => true, () => false)();   // => true
+const exactlyOne = xor(value => value < 5, value => value % 2 === 0);
+exactlyOne(3);                                 // => true
+exactlyOne(4);                                 // => false
 xor(() => true, () => true)();                 // => false
 xor(() => true, () => true, () => true)();     // => false
 xor()();                                       // => false
@@ -1511,38 +1745,46 @@ The returned predicate awaits each callback result from left to right and stops 
 
 **Returns:** `Function` with signature `(...args) => Promise<boolean>`. A predicate resolving to `true` if exactly one awaited result is truthy; otherwise `false`.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier result would short-circuit. A callback throw or rejected result rejects the wrapper's promise with the exact failure value and prevents later callbacks from running.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier result would short-circuit.
+- A callback throw or rejected result rejects the wrapper's promise with the exact failure value and prevents later callbacks from running.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { xor, xorAsync } = require('go-fns');
-await xorAsync(() => false, async () => true, () => false)(); // => true
-await xorAsync(() => true, async () => true, () => true)();   // => false
-await xorAsync(null, async () => 'selected', undefined)();   // => true
-await xorAsync()();                                          // => false
-await xorAsync(null, undefined)();                           // => false
-xorAsync(() => true, () => true, 123);                       // => throws TypeError
-xor.async === xorAsync;                                     // => true
 
-const calls = [];
-const exactlyOne = xorAsync(
-  () => { calls.push('first'); return true; },
-  async () => { calls.push('second'); return true; },
-  () => { calls.push('third'); return true; }
-);
-const result = exactlyOne();
-calls;                                                      // => ['first']
-await result;                                               // => false
-calls;                                                      // => ['first', 'second']
+async function main() {
+  await xorAsync(() => false, async () => true, () => false)();  // => true
+  await xorAsync(() => true, async () => true, () => true)();    // => false
+  await xorAsync(null, async () => 'selected', undefined)();     // => true
+  await xorAsync()();                                            // => false
+  await xorAsync(null, undefined)();                             // => false
+  assert.throws(() => xorAsync(() => true, () => true, 123), TypeError);
+
+  const calls = [];
+  const exactlyOne = xorAsync(
+    () => { calls.push('first'); return true; },
+    async () => { calls.push('second'); return true; },
+    () => { calls.push('third'); return true; }
+  );
+  const result = exactlyOne();
+  calls;                                                         // => ['first']
+  await result;                                                  // => false
+  calls;                                                         // => ['first', 'second']
+}
+
+main();
 ```
 
 **Notes**
 
 The first reached callback starts during invocation. Each later callback waits for the preceding result, including synchronous values. Concurrent wrapper invocations remain independent. See [Asynchronous predicates](#asynchronous-predicates) for composition and synchronous callback API limitations.
 
-**Since:** 2.0.0. **Alias:** [`xor.async`](#xorasyncfns), the same function object.
+**Since:** 2.0.0.
 
 ---
 
@@ -1561,7 +1803,10 @@ Stops at the first truthy result. The returned predicate forwards all call argum
 
 **Returns:** `Function` with signature `(...args) => boolean`. A predicate returning `true` if at least one predicate is supplied and all results are falsy; otherwise `false`.
 
-**Errors:** `TypeError`: If an entry is neither a function, `null` nor `undefined`. All entries are validated before evaluation; later callback errors propagate.
+**Errors**
+
+- `TypeError` if an entry is neither a function, `null` nor `undefined`.
+- All entries are validated before evaluation; later callback errors propagate.
 
 **Examples**
 
@@ -1598,43 +1843,51 @@ The returned predicate awaits each callback result from left to right and stops 
 
 **Returns:** `Function` with signature `(...args) => Promise<boolean>`. A predicate resolving to `true` if at least one predicate is supplied and all awaited results are falsy; otherwise `false`.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier result would short-circuit. A callback throw or rejected result rejects the wrapper's promise with the exact failure value and prevents later callbacks from running.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if an entry is neither a function, `null` nor `undefined`, even when an earlier result would short-circuit.
+- A callback throw or rejected result rejects the wrapper's promise with the exact failure value and prevents later callbacks from running.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { nor, norAsync } = require('go-fns');
-const isNeitherTextNorNumber = norAsync(
-  value => typeof value === 'string',
-  async value => typeof value === 'number'
-);
-await isNeitherTextNorNumber(false);                  // => true
-await isNeitherTextNorNumber('hello');                // => false
-await isNeitherTextNorNumber(1);                      // => false
-await norAsync(null, async () => 0, undefined)();     // => true
-await norAsync()();                                    // => false
-await norAsync(null, undefined)();                     // => false
-norAsync(() => true, 123);                            // => throws TypeError
-nor.async === norAsync;                                // => true
 
-const calls = [];
-const neither = norAsync(
-  () => { calls.push('first'); return false; },
-  async () => { calls.push('second'); return 'found'; },
-  () => { calls.push('third'); return false; }
-);
-const result = neither();
-calls;                                                // => ['first']
-await result;                                         // => false
-calls;                                                // => ['first', 'second']
+async function main() {
+  const isNeitherTextNorNumber = norAsync(
+    value => typeof value === 'string',
+    async value => typeof value === 'number'
+  );
+  await isNeitherTextNorNumber(false);               // => true
+  await isNeitherTextNorNumber('hello');             // => false
+  await isNeitherTextNorNumber(1);                   // => false
+  await norAsync(null, async () => 0, undefined)();  // => true
+  await norAsync()();                                // => false
+  await norAsync(null, undefined)();                 // => false
+  assert.throws(() => norAsync(() => true, 123), TypeError);
+
+  const calls = [];
+  const neither = norAsync(
+    () => { calls.push('first'); return false; },
+    async () => { calls.push('second'); return 'found'; },
+    () => { calls.push('third'); return false; }
+  );
+  const result = neither();
+  calls;                                             // => ['first']
+  await result;                                      // => false
+  calls;                                             // => ['first', 'second']
+}
+
+main();
 ```
 
 **Notes**
 
 The first reached callback starts during invocation. Each later callback waits for the preceding result, including synchronous values. Concurrent wrapper invocations remain independent. See [Asynchronous predicates](#asynchronous-predicates) for composition and synchronous callback API limitations.
 
-**Since:** 2.0.0. **Alias:** [`nor.async`](#norasyncfns), the same function object.
+**Since:** 2.0.0.
 
 ---
 
@@ -1653,7 +1906,10 @@ Unlike the multi-predicate helpers, a missing or nullish callback is invalid. Th
 
 **Returns:** `Function` with signature `(...args) => boolean`. A predicate returning `true` if the callback result is falsy; otherwise `false`.
 
-**Errors:** `TypeError`: If a required callback is not a function. Errors from later callback calls propagate unchanged.
+**Errors**
+
+- `TypeError` if a required callback is not a function.
+- Errors from later callback calls propagate unchanged.
 
 **Examples**
 
@@ -1691,44 +1947,52 @@ The returned predicate forwards all call arguments and the caller's `this`, awai
 
 **Returns:** `Function` with signature `(...args) => Promise<boolean>`. A predicate whose promise resolves to `true` if the awaited callback result is falsy; otherwise `false`.
 
-**Errors:** `TypeError` is thrown synchronously by the factory if `fn` is not a function. A callback throw or rejected result rejects the returned predicate's promise with the exact same value.
+**Errors**
+
+- `TypeError` is thrown synchronously by the factory if `fn` is not a function.
+- A callback throw or rejected result rejects the returned predicate's promise with the exact same value.
 
 **Examples**
 
 <!-- prettier-ignore -->
 ```javascript
+const assert = require('assert');
 const { not, notAsync } = require('go-fns');
-const isMissing = notAsync(async value => value);
 
-await isMissing('present');                        // => false
-await isMissing('');                               // => true
-await notAsync(() => 0)();                         // => true
-notAsync();                                        // => throws TypeError
-notAsync(null);                                    // => throws TypeError
-not.async === notAsync;                            // => true
+async function main() {
+  const isMissing = notAsync(async value => value);
 
-const thenable = { then(resolve) { resolve(false); } };
-await notAsync(() => thenable)();                  // => true
+  await isMissing('present');                        // => false
+  await isMissing('');                               // => true
+  await notAsync(() => 0)();                         // => true
+  assert.throws(() => notAsync(), TypeError);
+  assert.throws(() => notAsync(null), TypeError);
 
-const input = Promise.resolve(false);
-const seesInput = notAsync(value => value === input);
-await seesInput(input);                            // => false
+  const thenable = { then(resolve) { resolve(false); } };
+  await notAsync(() => thenable)();                  // => true
 
-const isDisabled = notAsync(function () { return this.enabled; });
-await isDisabled.call({ enabled: true });          // => false
+  const input = Promise.resolve(false);
+  const seesInput = notAsync(value => value === input);
+  await seesInput(input);                            // => false
 
-const reason = { message: 'unavailable' };
-const throws = notAsync(() => { throw reason; });
-const rejects = notAsync(() => Promise.reject(reason));
-await throws().catch(error => error === reason);   // => true
-await rejects().catch(error => error === reason);  // => true
+  const isDisabled = notAsync(function () { return this.enabled; });
+  await isDisabled.call({ enabled: true });          // => false
+
+  const reason = { message: 'unavailable' };
+  const throws = notAsync(() => { throw reason; });
+  const rejects = notAsync(() => Promise.reject(reason));
+  await throws().catch(error => error === reason);   // => true
+  await rejects().catch(error => error === reason);  // => true
+}
+
+main();
 ```
 
 **Notes**
 
 The callback starts during invocation; the returned predicate always returns a promise, including for synchronous values and throws. See [Asynchronous predicates](#asynchronous-predicates) for use with synchronous callback APIs.
 
-**Since:** 2.0.0. **Alias:** [`not.async`](#notasyncfn), the same function object.
+**Since:** 2.0.0.
 
 ## Behaviour
 
@@ -1766,10 +2030,13 @@ remain required.
 
 ### Invalid arguments and callback errors
 
+`result` deliberately accepts both values and functions; non-function inputs pass through unchanged.
+
 A required callback must have JavaScript type `function`. Other inputs produce a
 `TypeError` before any callback runs. Synchronous operations and wrapper factories
-(including `pipeAsync`, `tapAsync`, all async logical helpers, `whenAsync` and `ifElseAsync`) throw immediately. `attemptResultAsync` and
-`sleep` and `repeatAsync` report invalid configuration by rejecting their returned promises.
+(including `pipeAsync`, `tapAsync`, all async logical helpers, `whenAsync` and `ifElseAsync`)
+throw immediately. `attemptResultAsync`, `repeatAsync` and `sleep` reject their
+returned promises for invalid configuration.
 Validation does not stringify invalid values or invoke their coercion hooks.
 Classes and revoked callable proxies can pass that type check but still throw when
 invoked; invocation failures follow the same error behaviour as other callbacks.
@@ -1782,7 +2049,7 @@ short-circuit. Other non-functions are configuration errors, not false predicate
 `pipe`, `spread`, the synchronous logical helpers and `repeat` propagate callback exceptions.
 All async logical helpers, `whenAsync` and `ifElseAsync` reject with the exact thrown or rejected value.
 `attempt` returns the exact thrown value; the result variants report callback failures
-in result objects. `once` caches callback failures and rethrows them on later calls.
+in result objects. `once` caches synchronous throws and rethrows the same value on later calls.
 `tap` propagates observer failures; async pipelines/observers reject. `delay` leaves later callback failures
 to the timer host; it does not catch them.
 
@@ -1800,7 +2067,9 @@ Bound functions and arrow functions retain their normal JavaScript receiver rule
 
 For compatibility, `attempt`, `attemptResult`, `attemptResultAsync`, `repeat` and `repeatAsync` use the callback function itself as
 its receiver. Use `fn.bind(context)` to supply a different receiver to those utilities.
-`delay` uses the native timer's callback receiver, not the library namespace.
+`delay` uses the native timer's callback receiver. `applyIf` forwards its caller's
+receiver to the predicate and transform. `result` calls its callback without
+forwarding a receiver. Bind methods that require a particular receiver.
 
 ### Synchronous results and promises
 
@@ -1808,15 +2077,15 @@ The original synchronous utilities do not await promises. A promise is an ordina
 value in `pipe`, a truthy result in a synchronous logical predicate, and an array element in
 `repeat`. `attempt` and `attemptResult` do not catch a promise's later rejection.
 `tap` does not await its observer. `once` caches a returned promise without wrapping
-it or handling its rejection.
+it or handling its rejection. `result` preserves direct and returned promises and thenables without assimilation.
 
 Use `pipeAsync`, `attemptResultAsync`, `tapAsync`, `repeatAsync`, `andAsync`,
 `orAsync`, `xorAsync`, `norAsync`, `notAsync`, `whenAsync` and `ifElseAsync` to await results explicitly.
 `when`/`ifElse` predicates remain synchronous; promise predicates are truthy.
 Argument adapters and scheduler callbacks return promises unchanged, without
 awaiting, serialising, catching or cancelling their asynchronous work.
-`sleep` always returns a promise. No existing operation automatically changes its
-return type based on whether a callback happens to return a promise.
+`sleep` always returns a promise. Each helper has a fixed awaiting policy regardless
+of what its callbacks return.
 
 ### Asynchronous predicates
 
@@ -1872,8 +2141,9 @@ The same empty-input results apply after nullish function entries are removed.
 A lone leading invocation is not repeated on the trailing edge. With both edges
 false the wrapper is inert: it schedules no timer and never invokes the callback.
 
-Durations are finite numbers from 0 through 2147483647 milliseconds; omitted means
-zero, not `null`. Fractional values are accepted subject to host timer resolution.
+`debounce` and `throttle` accept finite durations from 0 through 2147483647 milliseconds.
+An omitted duration or `undefined` uses zero. Fractional values are accepted subject to
+host timer resolution. See [`delay`](#delayfn-milliseconds-args) for host timer coercion.
 Options must be an object (not `null` or an array); `leading` and `trailing` must be booleans when
 provided. Unknown properties are ignored. Debounce's optional `maxWait` is a
 finite duration in the same range and must be at least the ordinary wait.
@@ -1886,12 +2156,11 @@ Every scheduler wrapper has detachable methods:
 <!-- prettier-ignore -->
 | Method | Contract |
 | --- | --- |
-| `pending()` | Determines whether an eligible callback invocation is scheduled. Returns `true` for pending work; a leading-only cooldown or an in-flight promise alone returns `false`. |
-| `cancel()` | Discard scheduled work and reset suppression; retain the last successfully completed invocation's result. Does not stop work already started. |
+| `pending()` | Checks whether an eligible callback invocation is scheduled. Returns `true` for pending work; a leading-only cooldown or an in-flight promise alone returns `false`. |
+| `cancel()` | Discard scheduled work and reset suppression; retain the most recent callback return value. Does not stop work already started. |
 | `flush()` | Execute eligible pending work now, otherwise return the last result. Does not release a pure leading-only cooldown. |
 
-The wrapper and `flush()` return the last completed callback result, or `undefined`
-before one exists. They do not create a promise for every scheduled call. Throttle
+The wrapper and `flush()` return the most recent callback return value, including a pending promise, or `undefined` until the first successful return. For example, `await debouncedSave(value)` may await the promise from a previous invocation or complete before the scheduled callback starts. Handle promise rejections inside the callback or track completion separately. Throttle
 measures ordinary invocation spacing from the last actual invocation, including a
 trailing one; explicit flush/cancel override normal rate control. It limits starts,
 not concurrent asynchronous operations. Host timers can run late. Elapsed-time
@@ -1902,7 +2171,7 @@ Clock selection happens at wrapper construction, not import: install fake timers
 and their monotonic clock before constructing wrappers in tests.
 
 A clock failure during expiry or `flush()` discards that operation's pending work,
-retains the last completed result and propagates the original error. Later calls
+retains the most recent callback return value and propagates the original error. Later calls
 can schedule again. If clock instrumentation cancels or replaces the work during
 the read, the interrupted operation leaves that newer state intact; it does not
 invoke the replacement early or orphan its timer.
@@ -1926,9 +2195,11 @@ count is known; equal-length alternatives and compatible rest suffixes remain us
 
 ## TypeScript
 
-Declaration files are included; no runtime TypeScript dependency or source rewrite
-is required. They target TypeScript 5.4+ and were checked with 5.8.3. They support
-default and named imports, CommonJS imports, attached variants and public `src/` module paths.
+Each top-level function has a `go-fns/<exportName>` entry sharing its root export's identity and contract. CommonJS returns the callable directly; ES modules supply named and default exports. Named function imports require `Node16`, `NodeNext` or `Bundler` resolution. Legacy `Node` resolution supports CommonJS and default function imports with interop; named root imports remain available.
+
+TypeScript declarations are included; no separate `@types` package is required.
+
+Consumer declarations support TypeScript 5.4 or later and are checked with 5.4.5 and 5.8.3. The 5.4 inference controls preserve callback parameter and argument checking. They support default and named imports, CommonJS imports, function subpaths and existing public `src/` module paths.
 
 ```typescript
 import { pipe, pipeAsync, attemptResult, type Result } from 'go-fns';

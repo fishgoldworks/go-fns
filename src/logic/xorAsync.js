@@ -4,7 +4,8 @@ var normalizeFunctions = require('../util/normalizeFunctions');
 var apply = Reflect.apply;
 
 /**
- * Creates an async predicate that requires exactly one awaited callback result to be truthy.
+ * Creates a predicate that awaits results in order and determines whether exactly one is
+ * truthy.
  * Callbacks are awaited sequentially and evaluation stops at the second truthy result;
  * three truthy results still resolve to `false`, rather than odd-parity XOR. Nullish
  * predicates are skipped; an empty list resolves to `false`. All configuration is validated
@@ -22,10 +23,10 @@ var apply = Reflect.apply;
  * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
  * @example
  * const exactlyOne = xorAsync(value => typeof value === 'number', async value => value > 0);
- * await exactlyOne(-3);          // => true
- * await exactlyOne(3);           // => false
- * await xorAsync(() => true, () => true, () => true)(); // => false
- * await xorAsync()();            // => false
+ * await exactlyOne(-3);                                  // => true
+ * await exactlyOne(3);                                   // => false
+ * await xorAsync(() => true, () => true, () => true)();  // => false
+ * await xorAsync()();                                    // => false
  * @since 2.0.0
  * @static
  * @memberof Logic

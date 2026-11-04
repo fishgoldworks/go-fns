@@ -2,7 +2,6 @@ import {
   once,
   pipe,
   pipeAsync,
-  partial,
   partialRight,
   repeat,
   repeatAsync,
@@ -122,8 +121,7 @@ const anyReceiverOnce = once(anyReceiverUnion);
 const anyReceiverPipe = pipe(anyReceiverUnion);
 const anyReceiverAsync = pipeAsync(anyReceiverUnion);
 const anyReceiverRight = partialRight(anyReceiverUnion, 1);
-const anyReceiverAlias = pipe.async(null, anyReceiverUnion, undefined);
-const anyReceiverPartialAlias = partial.right(anyReceiverUnion, 1);
+const anyReceiverSparse = pipeAsync(null, anyReceiverUnion, undefined);
 // @ts-expect-error the concrete receiver is still required
 anyReceiverOnce(1);
 // @ts-expect-error the concrete receiver is still required
@@ -132,10 +130,8 @@ anyReceiverPipe(1);
 anyReceiverAsync(1);
 // @ts-expect-error binding inputs does not bind the required receiver
 anyReceiverRight();
-// @ts-expect-error gaps and aliases preserve receiver requirements
-anyReceiverAlias(1);
-// @ts-expect-error the partial.right alias preserves receiver requirements
-anyReceiverPartialAlias();
+// @ts-expect-error nullish gaps preserve receiver requirements
+anyReceiverSparse(1);
 // @ts-expect-error an explicit incompatible receiver is also unsafe
 anyReceiverOnce.call({}, 1);
 // @ts-expect-error an explicit incompatible receiver is also unsafe

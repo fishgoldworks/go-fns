@@ -28,16 +28,3 @@ function tap(observer) {
   };
 }
 module.exports = tap;
-/**
- * Creates a function that awaits an observer before returning its input value. Alias of
- * `tapAsync`.
- * The observer receives exactly one input and the caller's `this`. A promise input reaches
- * the observer unchanged, but the returned promise resolves to its awaited value.
- * @param {Function} observer Synchronous or asynchronous observer receiving one input.
- * @returns {Function} An async wrapper resolving to the input after the observer succeeds;
- * promise inputs are unwrapped. Observer failures reject the wrapper promise.
- * @throws {TypeError} If `observer` is not a function. Later observer throws or rejections
- * reject the wrapper promise.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#tapasyncobserver | Full API documentation}
- */
-module.exports.async = require('./tapAsync');

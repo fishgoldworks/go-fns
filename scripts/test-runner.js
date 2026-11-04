@@ -7,9 +7,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const project = path.resolve(__dirname, '..');
 
-function fixture(files, action) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'go-fns-runner-'));
+function fixture(files, action, ancestor = '') {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'go-fns-runner-'));
+  const root = path.join(temporary, ancestor, 'checkout');
   try {
+    fs.mkdirSync(root, { recursive: true });
     fs.cpSync(path.join(project, 'scripts'), path.join(root, 'scripts'), { recursive: true });
     fs.mkdirSync(path.join(root, 'test'));
     for (const [file, source] of Object.entries(files)) {
@@ -19,7 +21,7 @@ function fixture(files, action) {
     }
     return action(root);
   } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(temporary, { recursive: true, force: true });
   }
 }
 function run(root, flags = [], runner = 'scripts/test.js') {
@@ -153,6 +155,110 @@ test('native coverage accepts a fully loaded source inventory', () =>
       const result = run(root, ['--experimental-test-coverage']);
       assert.equal(result.status, 0, result.output);
       assert.match(result.output, /# end of coverage report/);
+    }
+  ));
+
+function nativeFlags() {
+  const command = JSON.parse(fs.readFileSync(path.join(project, 'package.json'), 'utf8')).scripts['coverage:native'];
+  return command
+    .split('npm test -- ')[1]
+    .match(/(?:[^\s"]+|"[^"]*")+/g)
+    .map((flag) => flag.replaceAll('"', ''));
+}
+const measuredSources = {
+  'index.js': "module.exports = require('./src/value');",
+  'src/value.js': 'module.exports = function value(flag) { return flag ? 1 : 2; };'
+};
+for (const ancestor of ['temp', 'nested/.tmp']) {
+  test('native coverage measures uncovered branches beneath ancestor ' + ancestor, () =>
+    fixture(
+      {
+        ...measuredSources,
+        'test/source.test.js':
+          "test('one branch',()=>require('node:assert/strict').equal(require('../index')(true),1));"
+      },
+      (root) => {
+        const result = run(root, nativeFlags());
+        assert.notEqual(result.status, 0, result.output);
+        assert.match(result.output, /branch coverage.*(?:threshold|100)|coverage.*branches/i);
+        assert.match(result.output, /value\.js/);
+      },
+      ancestor
+    )
+  );
+
+  test('native coverage accepts fully covered sources beneath ancestor ' + ancestor, () =>
+    fixture(
+      {
+        ...measuredSources,
+        'src/temp/private.js': "throw Error('experiment source executed');",
+        'src/util/.tmp/private.js': "throw Error('nested experiment source executed');",
+        'test/source.test.js': `test('both branches',()=>{
+          const assert=require('node:assert/strict');
+          const value=require('../index');
+          assert.equal(value(true),1);
+          assert.equal(value(false),2);
+        });`
+      },
+      (root) => {
+        const result = run(root, nativeFlags());
+        assert.equal(result.status, 0, result.output);
+        assert.match(result.output, /value\.js/);
+        assert.doesNotMatch(result.output, /private\.js/);
+        assert.equal(
+          fs.readFileSync(path.join(root, 'src/temp/private.js'), 'utf8'),
+          "throw Error('experiment source executed');"
+        );
+        assert.equal(
+          fs.readFileSync(path.join(root, 'src/util/.tmp/private.js'), 'utf8'),
+          "throw Error('nested experiment source executed');"
+        );
+      },
+      ancestor
+    )
+  );
+}
+for (const excluded of ['**/*.js', 'src/**/*.js']) {
+  test('native coverage rejects loaded but unmeasured inventory excluded by ' + excluded, () =>
+    fixture(
+      {
+        ...measuredSources,
+        'test/source.test.js': "test('both branches',()=>{const value=require('../index');value(true);value(false);});"
+      },
+      (root) => {
+        const result = run(root, [...nativeFlags(), '--test-coverage-exclude=' + excluded]);
+        assert.notEqual(result.status, 0, result.output);
+        assert.match(result.output, /Unmeasured production module.*src\/value\.js/);
+      }
+    )
+  );
+}
+
+test('native coverage preserves filters and explicit reporter destinations', () =>
+  fixture(
+    {
+      ...measuredSources,
+      'test/source.test.js': `test('selected',()=>{
+        const value=require('../index');value(true);value(false);
+      });test('excluded',()=>{throw Error('must not run');});`
+    },
+    (root) => {
+      const report = path.join(root, 'report.xml');
+      const result = run(root, [
+        '--experimental-test-coverage',
+        '--test-name-pattern=^selected$',
+        '--test-reporter',
+        'junit',
+        '--test-reporter-destination',
+        'stdout',
+        '--test-reporter-destination',
+        report
+      ]);
+      assert.equal(result.status, 0, result.output);
+      assert.match(result.stdout, /# tests 1\b/);
+      const xml = fs.readFileSync(report, 'utf8');
+      assert.match(xml, /<testcase name="selected"/);
+      assert.doesNotMatch(xml, /name="excluded"/);
     }
   ));
 test('CLI starts a fresh harness even when called from a node:test worker', () =>
@@ -290,3 +396,25 @@ for (const runner of ['scripts/test.js', 'scripts/run-tests.js']) {
       }
     ));
 }
+
+test('runtime discovery and native coverage leave nested experiments unexecuted', () =>
+  fixture(
+    {
+      'index.js': "module.exports = require('./src/value');",
+      'src/value.js': 'module.exports = 42;',
+      'src/temp/private.js': "throw Error('experiment source executed');",
+      'src/util/.tmp/private.js': "throw Error('nested experiment source executed');",
+      'test/temp/private.test.js': "throw Error('experiment test executed');",
+      'test/logic/.tmp/private.test.js': "throw Error('nested experiment test executed');",
+      'test/kept.test.js': "test('maintained test',()=>require('node:assert/strict').equal(require('../index'),42));"
+    },
+    (root) => {
+      const result = run(root, ['--experimental-test-coverage']);
+      assert.equal(result.status, 0, result.output);
+      assert.match(result.output, /# tests 1\b/);
+      assert.equal(
+        fs.readFileSync(path.join(root, 'src/temp/private.js'), 'utf8'),
+        "throw Error('experiment source executed');"
+      );
+    }
+  ));

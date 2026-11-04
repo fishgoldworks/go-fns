@@ -8,6 +8,7 @@ const root = path.join(__dirname, '..');
 const expected = [
   'and',
   'andAsync',
+  'applyIf',
   'attempt',
   'attemptResult',
   'attemptResultAsync',
@@ -28,6 +29,7 @@ const expected = [
   'pipeAsync',
   'repeat',
   'repeatAsync',
+  'result',
   'sleep',
   'spread',
   'tap',
@@ -80,8 +82,9 @@ for (const name of ['go-fns.js', 'go-fns.min.js']) {
       (sandbox.exports && sandbox.exports.Functions) ||
       sandbox.Functions;
     assert.deepEqual(Object.keys(api).sort(), expected);
-    for (const name of ['not', 'and', 'or', 'nor', 'xor', 'when', 'ifElse'])
-      assert.equal(api[name].async, api[name + 'Async']);
+    for (const name of expected)
+      for (const property of ['async', 'result', 'resultAsync', 'right'])
+        assert.equal(Object.hasOwn(api[name], property), false, name + '.' + property);
     assert.equal(api.pipe(null, (value) => value + 1, undefined)(2), 3);
     assert.equal(
       api

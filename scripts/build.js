@@ -5,8 +5,9 @@ const vm = require('node:vm');
 const webpack = require('webpack');
 const { minify: minifyJavaScript } = require('terser');
 const NAME = 'go-fns';
-const { consumerFiles, runtimeFiles, consumerManifest } = require('./package-layout');
+const { consumerFiles, runtimeFiles, consumerManifest, writeFunctionEntries } = require('./package-layout');
 const checkSourceMap = require('./check-source-map');
+const { generate } = require('./docs');
 function banner(root) {
   const pkg = JSON.parse(nativeFs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   return (
@@ -102,14 +103,13 @@ function validateApi(api, expected, filename, mode) {
   )
     throw Error(`${filename} (${mode}) failed the function-composition contract.`);
   const result = api.attemptResult(() => 42);
-  if (
-    result.ok !== true ||
-    result.value !== 42 ||
-    api.pipe.async !== api.pipeAsync ||
-    api.partial.right !== api.partialRight ||
-    api.repeat.async !== api.repeatAsync
-  )
-    throw Error(`${filename} (${mode}) failed result/attached API checks.`);
+  if (result.ok !== true || result.value !== 42) throw Error(`${filename} (${mode}) failed result API checks.`);
+  for (const name of Object.keys(api)) {
+    for (const property of ['async', 'result', 'resultAsync', 'right']) {
+      if (Object.prototype.hasOwnProperty.call(api[name], property))
+        throw Error(`${filename} (${mode}) retained a removed attachment: ${name}.${property}`);
+    }
+  }
 }
 function validate(root, output, fs) {
   const expected = require(path.join(root, 'index.js'));
@@ -151,6 +151,7 @@ async function build({
   fs = nativeFs,
   minify: minifier = minifyJavaScript
 } = {}) {
+  generate({ root });
   const dist = path.join(root, 'package');
   const stage = fs.mkdtempSync(path.join(root, '.build-'));
   const output = path.join(stage, 'output');
@@ -164,6 +165,7 @@ async function build({
       fs.mkdirSync(path.dirname(path.join(output, file)), { recursive: true });
       fs.copyFileSync(path.join(root, file), path.join(output, file));
     }
+    writeFunctionEntries(output, root, fs);
     const manifest = consumerManifest(root);
     fs.writeFileSync(path.join(output, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
     const bundles = path.join(output, 'dist');

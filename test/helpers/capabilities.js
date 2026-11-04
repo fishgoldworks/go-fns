@@ -232,8 +232,33 @@ async function exercise(api, fixture, scenario) {
     })(),
     true
   );
-  assert.strictEqual(api.when.async, api.whenAsync);
-  assert.strictEqual(api.pipe.async, api.pipeAsync);
+  assert.strictEqual(
+    api.applyIf(value, false, function () {
+      throw Error('Skipped transform');
+    }),
+    value
+  );
+  assert.strictEqual(
+    api.applyIf(
+      value,
+      function () {
+        return 1;
+      },
+      function (input) {
+        return input;
+      }
+    ),
+    value
+  );
+  assert.strictEqual(api.result(value), value);
+  assert.strictEqual(
+    api.result(function (input) {
+      return input;
+    }, value),
+    value
+  );
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(api.when, 'async'), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(api.pipe, 'async'), false);
   var once = api.once(function () {
     return value;
   });
@@ -366,7 +391,7 @@ async function exercise(api, fixture, scenario) {
 async function run(entry, resolveFocused) {
   entry = require.resolve(entry);
   var bundled = /go-fns(?:\.min)?\.js$/.test(entry);
-  var imports = bundled ? modes : ['root', 'focused'];
+  var imports = bundled ? modes : resolveFocused ? ['root', 'focused', 'functions'] : ['root', 'focused'];
   var mappings = [];
   if (!bundled) {
     var pattern = /module\.exports\.(\w+) = require\('([^']+)'\)/g;
@@ -388,11 +413,13 @@ async function run(entry, resolveFocused) {
             api = {};
             for (var mapping of mappings)
               api[mapping[1]] = load(
-                resolveFocused ? resolveFocused(mapping[2]) : path.resolve(path.dirname(entry), mapping[2])
+                resolveFocused
+                  ? resolveFocused(mode === 'functions' ? './' + mapping[1] : mapping[2])
+                  : path.resolve(path.dirname(entry), mapping[2])
               );
           }
         }
-        assert.strictEqual(Object.keys(api).length, 32, 'Incomplete API import');
+        assert.strictEqual(Object.keys(api).length, 34, 'Incomplete API import');
         assert.strictEqual(context.fixture.clockReads, 0, 'Import read optional clock');
         context.importing = false;
         await exercise(api, context.fixture, scenario);

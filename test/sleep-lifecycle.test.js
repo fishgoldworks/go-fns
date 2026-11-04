@@ -198,4 +198,136 @@ suite('sleep settlement and cleanup races', function () {
       clock.restore();
     }
   });
+  test('a suppressed native abort rejects at timer completion and releases only its own listener', async () => {
+    const { getEventListeners } = require('node:events');
+    const clock = host(),
+      controller = new AbortController(),
+      reason = {};
+    const block = (event) => event.stopImmediatePropagation();
+    controller.signal.addEventListener('abort', block);
+    try {
+      const pending = sleep(2, { signal: controller.signal });
+      controller.abort(reason);
+      [...clock.jobs.values()][0]();
+      await assert.rejects(pending, (e) => e === reason);
+      assert.equal(clock.jobs.size, 0);
+      assert.deepEqual(getEventListeners(controller.signal, 'abort'), [block]);
+    } finally {
+      controller.signal.removeEventListener('abort', block);
+      clock.restore();
+    }
+  });
+  for (const trigger of ['timeout', 'abort']) {
+    test(`reentrant ${trigger} settlement stops reading signal properties after cleanup`, async () => {
+      const clock = host(),
+        reason = {};
+      let listener,
+        aborted = false,
+        dispatch = false,
+        cleaned = false,
+        reasonReads = 0,
+        readsAfterCleanup = 0;
+      const signal = {
+        get aborted() {
+          if (cleaned) readsAfterCleanup++;
+          if (dispatch) {
+            dispatch = false;
+            listener();
+          }
+          return aborted;
+        },
+        get reason() {
+          if (cleaned) readsAfterCleanup++;
+          reasonReads++;
+          return reason;
+        },
+        addEventListener(type, fn) {
+          listener = fn;
+        },
+        removeEventListener() {
+          cleaned = true;
+        }
+      };
+      try {
+        const pending = sleep(2, { signal });
+        const timeout = [...clock.jobs.values()][0];
+        aborted = dispatch = true;
+        if (trigger === 'timeout') timeout();
+        else listener();
+        await assert.rejects(pending, (e) => e === reason);
+        assert.equal(reasonReads, 1);
+        assert.equal(cleaned, true);
+        assert.equal(clock.jobs.size, 0);
+        // Already queued callbacks must not inspect the signal again.
+        listener();
+        timeout();
+        assert.equal(reasonReads, 1);
+        assert.equal(readsAfterCleanup, 0);
+      } finally {
+        clock.restore();
+      }
+    });
+  }
+  for (const field of ['aborted', 'reason']) {
+    test(`${field} getter failure at timer completion rejects and releases resources`, async () => {
+      const clock = host(),
+        error = {};
+      let removed = 0,
+        fired = false;
+      const signal = {
+        get aborted() {
+          if (fired && field === 'aborted') throw error;
+          return fired;
+        },
+        get reason() {
+          throw error;
+        },
+        addEventListener() {},
+        removeEventListener() {
+          removed++;
+        }
+      };
+      try {
+        const pending = sleep(2, { signal });
+        fired = true;
+        [...clock.jobs.values()][0]();
+        await assert.rejects(pending, (e) => e === error);
+        assert.equal(clock.jobs.size, 0);
+        assert.equal(removed, 1);
+      } finally {
+        clock.restore();
+      }
+    });
+  }
+  test('a queued timeout after settlement does not read signal getters again', async () => {
+    const clock = host(),
+      controller = new AbortController();
+    let reads = 0;
+    const signal = {
+      get aborted() {
+        reads++;
+        return controller.signal.aborted;
+      },
+      get reason() {
+        return controller.signal.reason;
+      },
+      addEventListener(type, fn) {
+        controller.signal.addEventListener(type, fn);
+      },
+      removeEventListener(type, fn) {
+        controller.signal.removeEventListener(type, fn);
+      }
+    };
+    try {
+      const pending = sleep(2, { signal });
+      const callback = [...clock.jobs.values()][0];
+      controller.abort('cancel');
+      await assert.rejects(pending, (e) => e === 'cancel');
+      const settledReads = reads;
+      callback();
+      assert.equal(reads, settledReads);
+    } finally {
+      clock.restore();
+    }
+  });
 });

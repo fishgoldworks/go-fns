@@ -62,8 +62,7 @@ boundTail.call(receiver, 2);
 boundHead('b');
 // @ts-expect-error incompatible callback receiver
 boundTail.call({}, 2);
-const rightAlias: typeof partialRight = partial.right;
-const deepAlias: typeof partial = partialDeep;
+const deepPartial: typeof partial = partialDeep;
 
 const parsed: number[] = ['10', '20'].map(unary(parseInt));
 const noArgs: number = unary(() => 1)();
@@ -149,7 +148,6 @@ const pipelineResult: string = pipe(
 
 const repetitions: Promise<number[]> = repeatAsync(async (n: number) => n + 1, 2, 3);
 const repeatedNull: Promise<number[]> = repeatAsync(() => 1, null);
-const repeatAlias: typeof repeatAsync = repeat.async;
 // @ts-expect-error count must be numeric
 repeatAsync(() => 1, '2');
 // @ts-expect-error callback argument is missing

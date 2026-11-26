@@ -15,7 +15,7 @@ var normalizeFunctions = require('../util/normalizeFunctions');
  * with the original value.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated synchronously, including those that would be skipped by short circuit.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
  * @example
  * const isZeroOrPositive = orAsync(value => value === 0, async value => value > 0);
  * await isZeroOrPositive(3);     // => true
@@ -34,6 +34,7 @@ function orAsync(fns) {
         return true;
       }
     }
+
     return false;
   };
 }

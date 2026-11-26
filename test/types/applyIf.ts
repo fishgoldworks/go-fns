@@ -7,13 +7,17 @@ const matching: typeof applyIf = focused;
 const converted = applyIf('42', true, (value) => {
   const text: string = value;
   const precise: false = false as IsAny<typeof value>;
+
   // @ts-expect-error Callback input is text, not any.
   value.toFixed();
+
   return Number(text) + Number(precise);
 });
+
 type Converted = Expect<Equal<typeof converted, number>>;
 const original = { id: 1 } as const;
 const skipped = focused(original, false, (value) => value.id);
+
 type Skipped = Expect<Equal<typeof skipped, typeof original>>;
 declare const enabled: boolean;
 const dynamic: string | number = applyIf('42', enabled, (value) => Number(value));
@@ -38,12 +42,15 @@ const absent: undefined = focused(undefined, false, () => 1);
 const callbacks = { apply: applyIf, multiplier: 3 };
 const contextual: number = callbacks.apply(2, true, function (value) {
   const multiplier: number = this.multiplier;
+
   // @ts-expect-error The contextual receiver is not any or a number.
   this.toFixed();
+
   return value * multiplier;
 });
 const condition: boolean | ((value: number) => unknown) = enabled ? true : (value) => value;
 const policy: number | string = applyIf(2, condition, (value) => String(value));
+
 // @ts-expect-error Required condition is absent.
 applyIf(1);
 // @ts-expect-error Required transform is absent.
@@ -57,19 +64,23 @@ applyIf(1, false, null);
 // @ts-expect-error The input determines the callback parameter.
 applyIf('42', true, (value: number) => value);
 const numberOnlyPredicate = (value: number) => value;
+
 // @ts-expect-error Predicate inputs must accept the supplied value.
 applyIf('42', numberOnlyPredicate, (value) => value);
 // @ts-expect-error A dynamic decision can preserve its string input.
 const guaranteedNumber: number = applyIf('42', enabled, (value) => Number(value));
 const readonly: readonly number[] = [1, 2];
+
 applyIf(readonly, true, (value) => {
   // @ts-expect-error Readonly input stays readonly inside the callback.
   value.push(3);
+
   return value.length;
 });
 function needsReceiver(this: { multiplier: number }, value: number) {
   return this.multiplier * value;
 }
+
 // @ts-expect-error A plain call cannot supply the callback's required receiver.
 applyIf(2, true, needsReceiver);
 

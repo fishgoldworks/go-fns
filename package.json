@@ -4,8 +4,10 @@
   "private": true,
   "description": "Utility functions for functions.",
   "license": "MIT",
-  "author": "Michael Ko",
-  "email": "koyote130708@gmail.com",
+  "author": {
+    "name": "fishgoldworks",
+    "url": "https://github.com/fishgoldworks"
+  },
   "keywords": [
     "function",
     "utilities",
@@ -23,13 +25,13 @@
     "once",
     "sleep"
   ],
-  "homepage": "https://github.com/koyote130708/go-fns",
+  "homepage": "https://github.com/fishgoldworks/go-fns",
   "repository": {
     "type": "git",
-    "url": "https://github.com/koyote130708/go-fns.git"
+    "url": "https://github.com/fishgoldworks/go-fns.git"
   },
   "bugs": {
-    "url": "https://github.com/koyote130708/go-fns/issues"
+    "url": "https://github.com/fishgoldworks/go-fns/issues"
   },
   "main": "index.js",
   "types": "index.d.ts",
@@ -40,16 +42,16 @@
     "pack:package": "node scripts/pack-package.js",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
-    "format": "prettier . --write",
+    "format": "node scripts/format.mjs",
     "format:check": "prettier . --check",
     "test": "node scripts/test.js",
-    "test:docs": "node scripts/docs.js --check && node --test scripts/test-docs.js scripts/test-docs-html.js && node scripts/run-tests.js test/documentation.test.js",
+    "test:docs": "node scripts/docs.js --check && node --test test/docs/*.test.js && node scripts/run-tests.js test/documentation.test.js",
     "test:types": "node scripts/test-types.js",
-    "test:build": "node --test scripts/test-build.js",
-    "test:tooling": "node --test scripts/test-tooling.js scripts/test-verify.js scripts/test-runner.js scripts/test-test-output.js",
+    "test:build": "node --test test/build/*.test.js",
+    "test:tooling": "node --test test/tooling/*.test.{js,mjs}",
     "test:artifacts": "node scripts/test-artifacts.js",
     "test:package": "node scripts/test-package.js",
-    "test:release": "node --test scripts/test-release.js scripts/test-pack-safety.js",
+    "test:release": "node --test test/package/*.test.js",
     "test:browser": "python scripts/test-browser-driver.py && python scripts/test-browser.py",
     "test:browser-driver": "python scripts/test-browser-driver.py",
     "coverage": "c8 --clean npm test",
@@ -66,9 +68,11 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
     "c8": "12.0.0",
     "eslint": "10.11.0",
-    "globals": "17.12.0",
+    "eslint-plugin-jsdoc": "63.3.3",
+    "globals": "16.5.0",
     "markdown-it": "15.0.3",
     "prettier": "3.9.6",
     "terser": "5.51.2",

@@ -13,7 +13,7 @@ var normalizeFunctions = require('../util/normalizeFunctions');
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
  * @example
  * const predicate = or(value => typeof value === 'number', value => value > 0);
  * predicate(3);                  // => true
@@ -32,6 +32,7 @@ function or(fns) {
         return true;
       }
     }
+
     return false;
   };
 }

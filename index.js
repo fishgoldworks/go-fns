@@ -3,6 +3,7 @@
 /**
  * @namespace Utility
  */
+
 /**
  * Propositional logic connectives
  * @namespace Logic
@@ -27,10 +28,13 @@ module.exports.tapAsync = require('./src/tapAsync');
 module.exports.sleep = require('./src/sleep');
 module.exports.result = require('./src/result');
 module.exports.once = require('./src/once');
+module.exports.memoize = require('./src/memoize');
 
 module.exports.partial = require('./src/partial');
 module.exports.partialRight = require('./src/partialRight');
+module.exports.withDefaultArgs = require('./src/withDefaultArgs');
 module.exports.unary = require('./src/unary');
+module.exports.ary = require('./src/ary');
 module.exports.when = require('./src/when');
 module.exports.applyIf = require('./src/applyIf');
 module.exports.ifElse = require('./src/ifElse');

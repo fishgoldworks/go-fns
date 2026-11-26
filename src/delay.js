@@ -4,7 +4,7 @@ var expectFunction = require('./util/expectFunction');
 var getGlobal = require('./util/getGlobal');
 
 /**
- * Schedules a callback through the host's `setTimeout` and returns its timer handle.
+ * Schedules a callback to run later and returns a timer handle you can use to cancel it.
  * Duration coercion, scheduling and the callback receiver follow the host timer. Use
  * `clearTimeout` to cancel the handle. Creating the timeout does not invoke the callback
  * synchronously.
@@ -16,7 +16,7 @@ var getGlobal = require('./util/getGlobal');
  * object.
  * @throws {TypeError} If `fn` is not a function. Scheduling errors propagate; later callback
  * errors are reported by the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
  * @example
  * const timer = delay(console.log, 100, "hello");
  * clearTimeout(timer); // Cancel the pending callback.

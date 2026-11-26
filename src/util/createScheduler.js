@@ -1,6 +1,8 @@
 'use strict';
+
 var apply = Reflect.apply;
 var createClock = require('./createClock');
+
 /**
  * One-timer scheduler shared by debounce and throttle. All state is per wrapper.
  * Call arguments are cleared before callback invocation, so reentrant calls may
@@ -24,11 +26,13 @@ function createScheduler(fn, config) {
     timer = lastArgs = lastThis = lastCall = undefined;
     lastInvoke = 0;
   }
+
   function clearTimer() {
     var task = timer;
     // Keep a distinct owner while cleanup enters host instrumentation. Reentry
     // may share this pending call or supersede it through cancellation.
     var clearing = {};
+
     timer = clearing;
     try {
       if (task !== undefined && task.handle !== undefined) clearTimeout(task.handle);
@@ -36,14 +40,21 @@ function createScheduler(fn, config) {
       if (timer === clearing) reset();
       throw error;
     }
-    if (timer !== clearing) return false;
+
+    if (timer !== clearing) {
+      return false;
+    }
+
     timer = undefined;
+
     return true;
   }
+
   function arm(delay) {
     // Reserve ownership before entering the host: timer registration can run
     // user code through instrumentation, including cancellation or reentry.
     var task = {};
+
     timer = task;
     try {
       task.handle = setTimeout(function () {
@@ -54,32 +65,52 @@ function createScheduler(fn, config) {
       if (timer === task) reset();
       throw error;
     }
+
     if (timer !== task) {
       clearTimeout(task.handle);
+
       return false;
     }
+
     return true;
   }
+
   function invoke(now) {
     var args = lastArgs;
     var receiver = lastThis;
+
     lastArgs = lastThis = undefined;
     lastInvoke = now;
     result = apply(fn, receiver, args);
+
     return result;
   }
+
   function due(now) {
-    if (lastCall === undefined || now < lastCall) return true;
+    if (lastCall === undefined || now < lastCall) {
+      return true;
+    }
+
     // Throttle measures spacing from actual invocation, not the last input.
-    if (fixedInterval) return now - lastInvoke >= wait;
+    if (fixedInterval) {
+      return now - lastInvoke >= wait;
+    }
+
     return now - lastCall >= wait || (maxWait !== undefined && now - lastInvoke >= maxWait);
   }
+
   function finish(now) {
     timer = undefined;
-    if (trailing && lastArgs !== undefined) return invoke(now);
+
+    if (trailing && lastArgs !== undefined) {
+      return invoke(now);
+    }
+
     lastArgs = lastThis = undefined;
+
     return result;
   }
+
   // Expired or cleared timers must release their state on clock failure, but
   // clock instrumentation may already have cancelled or replaced that work.
   function readCompletionClock(task) {
@@ -90,75 +121,119 @@ function createScheduler(fn, config) {
       throw error;
     }
   }
+
   function expire() {
     var task = timer;
     var now = readCompletionClock(task);
-    if (timer !== task) return;
-    if (due(now)) return finish(now);
+
+    if (timer !== task) {
+      return;
+    }
+
+    if (due(now)) {
+      return finish(now);
+    }
+
     var remaining = wait - (now - (fixedInterval ? lastInvoke : lastCall));
+
     if (maxWait !== undefined) remaining = Math.min(remaining, maxWait - (now - lastInvoke));
     // The previous timer has fired; only the replacement is now active.
     timer = undefined;
     arm(remaining);
   }
+
   function scheduled() {
-    if (!leading && !trailing) return result;
+    if (!leading && !trailing) {
+      return result;
+    }
+
     var now = clock();
     var ready = due(now);
+
     lastArgs = arguments;
     lastThis = this;
     lastCall = now;
     if (ready && timer === undefined) {
       lastInvoke = now;
+
       // Arm before calling user code so recursion/cancellation sees real state.
-      if (!arm(wait)) return result;
+      if (!arm(wait)) {
+        return result;
+      }
+
       return leading ? invoke(now) : result;
     }
+
     if (ready && maxWait !== undefined) {
       // A blocked event loop must not indefinitely postpone throttled work.
-      if (!clearTimer()) return result;
-      if (!arm(wait)) return result;
+      if (!clearTimer()) {
+        return result;
+      }
+
+      if (!arm(wait)) {
+        return result;
+      }
+
       return invoke(now);
     }
+
     if (timer === undefined) arm(fixedInterval ? Math.max(0, wait - (now - lastInvoke)) : wait);
     // A leading-only suppressed call has no future consumer for its inputs.
     // Registration may still be on the stack and use the latest call for its
     // leading invocation; keep that handoff intact until its handle arrives.
     if (!trailing && timer !== undefined && timer.handle !== undefined) lastArgs = lastThis = undefined;
+
     return result;
   }
+
   /**
    * Discards pending calls and resets scheduling, retaining the most recent callback return value.
    * @returns {undefined} `undefined` after discarding scheduled work. Work already started continues.
-   * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncecancel | Full API documentation}
+   * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncedfncancel | Full API documentation}
    */
   scheduled.cancel = function () {
     var task = timer;
+
     reset();
     if (task !== undefined && task.handle !== undefined) clearTimeout(task.handle);
   };
+
   /**
    * Checks whether a callback invocation is scheduled.
    * @returns {boolean} `true` if a callback invocation is scheduled; otherwise `false`. A leading-only cooldown or an in-flight promise alone returns `false`.
-   * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncepending | Full API documentation}
+   * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncedfnpending | Full API documentation}
    */
   function pending() {
     // A leading-only cooldown or an in-flight promise is not pending work.
     return trailing && timer !== undefined && lastArgs !== undefined;
   }
+
   scheduled.pending = pending;
+
   /**
    * Invokes eligible pending work immediately, or returns the most recent callback return value.
    * @returns {*} The callback return value when pending work runs, including a pending promise, or the previous value otherwise; `undefined` until the first successful return.
-   * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debounceflush | Full API documentation}
+   * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncedfnflush | Full API documentation}
    */
   scheduled.flush = function () {
-    if (!pending()) return result;
-    if (!clearTimer()) return result;
+    if (!pending()) {
+      return result;
+    }
+
+    if (!clearTimer()) {
+      return result;
+    }
+
     var now = readCompletionClock(undefined);
-    if (timer !== undefined) return result;
+
+    if (timer !== undefined) {
+      return result;
+    }
+
     return finish(now);
   };
+
   return scheduled;
 }
+
 module.exports = createScheduler;

@@ -5,6 +5,7 @@ function expectFunction(arg) {
     // Do not stringify untrusted values while constructing a validation error.
     throw new TypeError('Expected a function.');
   }
+
   return arg;
 }
 

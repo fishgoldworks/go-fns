@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { applyIf } = require('./helpers/api');
@@ -8,20 +9,24 @@ suite('applyIf immediate conditional transformation', function () {
   test('exports an immediate transformation function', () => {
     assert.equal(typeof applyIf, 'function');
   });
+
   test('applies a transform once with exactly the supplied value', () => {
     let calls = 0;
     const input = { quantity: '12' };
+
     assert.equal(
       applyIf(input, true, function (value) {
         calls++;
         assert.equal(arguments.length, 1);
         assert.equal(value, input);
+
         return Number(value.quantity);
       }),
       12
     );
     assert.equal(calls, 1);
   });
+
   for (const [label, decision, enabled] of [
     ['true', true, true],
     ['false', false, false],
@@ -53,19 +58,23 @@ suite('applyIf immediate conditional transformation', function () {
           predicates++;
           assert.equal(value, input);
           assert.equal(arguments.length, 1);
+
           return decision;
         },
         (value) => {
           transforms++;
           assert.equal(value, input);
+
           return output;
         }
       );
+
       assert.equal(actual, enabled ? output : input);
       assert.equal(predicates, 1);
       assert.equal(transforms, enabled ? 1 : 0);
     });
   }
+
   for (const [label, value] of values) {
     test('preserves skipped ' + label + ' and raw transform results', () => {
       assert.ok(
@@ -81,6 +90,7 @@ suite('applyIf immediate conditional transformation', function () {
         )
       );
     });
+
     test('propagates thrown ' + label + ' from either callback unchanged', () => {
       assert.throws(
         () =>
@@ -102,20 +112,24 @@ suite('applyIf immediate conditional transformation', function () {
       );
     });
   }
+
   for (const [label, invalid] of invalidFunctions) {
     if (typeof invalid !== 'boolean') {
       test('rejects invalid ' + label + ' conditions before transformation', () => {
         assert.throws(() => applyIf({}, invalid, () => assert.fail('Invalid condition ran')), TypeError);
       });
     }
+
     test('rejects an invalid ' + label + ' transform before predicate execution', () => {
       let calls = 0;
+
       assert.throws(
         () =>
           applyIf(
             {},
             () => {
               calls++;
+
               return false;
             },
             invalid
@@ -126,6 +140,7 @@ suite('applyIf immediate conditional transformation', function () {
       assert.throws(() => applyIf({}, false, invalid), TypeError);
     });
   }
+
   test('requires condition and transform while accepting an explicit undefined input', () => {
     assert.throws(() => applyIf(), TypeError);
     assert.throws(() => applyIf(1), TypeError);
@@ -134,11 +149,13 @@ suite('applyIf immediate conditional transformation', function () {
       applyIf(undefined, true, function (value) {
         assert.equal(arguments.length, 1);
         assert.equal(value, undefined);
+
         return 'present';
       }),
       'present'
     );
   });
+
   test('forwards the exact caller receiver to both callbacks', () => {
     for (const receiver of [undefined, null, 0, false, '', {}]) {
       assert.equal(
@@ -147,10 +164,12 @@ suite('applyIf immediate conditional transformation', function () {
           3,
           function (value) {
             assert.equal(this, receiver);
+
             return value > 0;
           },
           function (value) {
             assert.equal(this, receiver);
+
             return value * 2;
           }
         ),
@@ -158,8 +177,10 @@ suite('applyIf immediate conditional transformation', function () {
       );
     }
   });
+
   test('skips opaque inputs without reading properties or coercion hooks', () => {
     const revoked = Proxy.revocable({}, {});
+
     revoked.revoke();
     const hostile = new Proxy(
       {},
@@ -169,6 +190,7 @@ suite('applyIf immediate conditional transformation', function () {
         }
       }
     );
+
     for (const value of [revoked.proxy, hostile]) {
       assert.equal(
         applyIf(value, false, () => assert.fail('Skipped transform ran')),
@@ -184,6 +206,7 @@ suite('applyIf immediate conditional transformation', function () {
       );
     }
   });
+
   test('does not inspect predicate results or assimilate returned thenables', () => {
     const opaque = new Proxy(
       {},
@@ -193,6 +216,7 @@ suite('applyIf immediate conditional transformation', function () {
         }
       }
     );
+
     assert.equal(
       applyIf(
         1,
@@ -202,16 +226,19 @@ suite('applyIf immediate conditional transformation', function () {
       opaque
     );
     const returned = () => assert.fail('Returned function invoked');
+
     assert.equal(
       applyIf(1, true, () => returned),
       returned
     );
     const promise = Promise.resolve(7);
+
     assert.equal(
       applyIf(1, true, () => promise),
       promise
     );
   });
+
   test('does not read callback call or apply properties', () => {
     const wrap = (fn) =>
       new Proxy(fn, {
@@ -219,6 +246,7 @@ suite('applyIf immediate conditional transformation', function () {
           throw Error('Callback property read');
         }
       });
+
     assert.equal(
       applyIf(
         2,
@@ -228,11 +256,13 @@ suite('applyIf immediate conditional transformation', function () {
       6
     );
   });
+
   test('accepts bound and foreign callbacks without replacing their receivers', () => {
     const receiver = { multiplier: 4 };
     const transform = function (value) {
       return value * this.multiplier;
     }.bind(receiver);
+
     assert.equal(applyIf(2, true, transform), 8);
     assert.equal(
       applyIf(
@@ -243,13 +273,16 @@ suite('applyIf immediate conditional transformation', function () {
       3
     );
   });
+
   test('preserves predicate mutations and supports reentrant transformations', () => {
     const input = { count: 1 };
+
     assert.equal(
       applyIf(
         input,
         (value) => {
           value.count++;
+
           return true;
         },
         (value) => value.count
@@ -265,11 +298,13 @@ suite('applyIf immediate conditional transformation', function () {
       6
     );
   });
+
   test('propagates invocation failures from constructor-only and revoked callbacks', () => {
     class ConstructorOnly {}
     assert.throws(() => applyIf(1, ConstructorOnly, (x) => x), TypeError);
     assert.throws(() => applyIf(1, true, ConstructorOnly), TypeError);
     const revoked = Proxy.revocable(() => true, {});
+
     revoked.revoke();
     assert.equal(applyIf(1, false, revoked.proxy), 1);
     assert.throws(() => applyIf(1, revoked.proxy, (x) => x), TypeError);

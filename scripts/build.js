@@ -1,4 +1,5 @@
 'use strict';
+
 const nativeFs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -8,8 +9,10 @@ const NAME = 'go-fns';
 const { consumerFiles, runtimeFiles, consumerManifest, writeFunctionEntries } = require('./package-layout');
 const checkSourceMap = require('./check-source-map');
 const { generate } = require('./docs');
+
 function banner(root) {
   const pkg = JSON.parse(nativeFs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+
   return (
     '/*! ' +
     pkg.name +
@@ -26,6 +29,7 @@ function banner(root) {
 async function bundle(root, output) {
   const compiler = webpack({
     mode: 'none',
+    devtool: 'source-map',
     context: root,
     entry: './index.js',
     target: ['web', 'es2017'],
@@ -39,6 +43,7 @@ async function bundle(root, output) {
   });
   let failure;
   let failed = false;
+
   try {
     await new Promise((resolve, reject) =>
       compiler.run((error, stats) => {
@@ -51,6 +56,7 @@ async function bundle(root, output) {
     failure = error;
     failed = true;
   }
+
   try {
     await new Promise((resolve, reject) => compiler.close((error) => (error ? reject(error) : resolve())));
   } catch (error) {
@@ -62,10 +68,13 @@ async function bundle(root, output) {
       : error;
     failed = true;
   }
+
   if (failed) throw failure;
 }
+
 async function minify(root, output, fs, minifier) {
   const readable = fs.readFileSync(path.join(output, NAME + '.js'), 'utf8');
+  const readableMap = fs.readFileSync(path.join(output, NAME + '.js.map'), 'utf8');
   const result = await minifier(
     { [NAME + '.js']: readable },
     {
@@ -76,13 +85,15 @@ async function minify(root, output, fs, minifier) {
       keep_fnames: true,
       keep_classnames: true,
       format: { comments: false, preamble: banner(root) },
-      sourceMap: { filename: NAME + '.min.js', url: NAME + '.min.js.map', includeSources: true }
+      sourceMap: { content: readableMap, filename: NAME + '.min.js', url: NAME + '.min.js.map', includeSources: true }
     }
   );
+
   if (result.error) throw result.error;
   fs.writeFileSync(path.join(output, NAME + '.min.js'), result.code);
   fs.writeFileSync(path.join(output, NAME + '.min.js.map'), result.map);
 }
+
 function validateApi(api, expected, filename, mode) {
   if (
     typeof api !== typeof expected ||
@@ -93,6 +104,7 @@ function validateApi(api, expected, filename, mode) {
   for (const key of Object.keys(expected)) {
     if (typeof api[key] !== typeof expected[key]) throw Error(`${filename} (${mode}) has an invalid export: ${key}`);
   }
+
   if (
     api.pipe(
       (value) => value + 1,
@@ -103,6 +115,7 @@ function validateApi(api, expected, filename, mode) {
   )
     throw Error(`${filename} (${mode}) failed the function-composition contract.`);
   const result = api.attemptResult(() => 42);
+
   if (result.ok !== true || result.value !== 42) throw Error(`${filename} (${mode}) failed result API checks.`);
   for (const name of Object.keys(api)) {
     for (const property of ['async', 'result', 'resultAsync', 'right']) {
@@ -111,27 +124,34 @@ function validateApi(api, expected, filename, mode) {
     }
   }
 }
+
 function validate(root, output, fs) {
   const expected = require(path.join(root, 'index.js'));
+
   for (const suffix of ['.js', '.min.js']) {
     const filename = NAME + suffix;
     const code = fs.readFileSync(path.join(output, filename), 'utf8');
     const script = new vm.Script(code, { filename });
+
     for (const mode of ['commonjs', 'global', 'worker-global', 'amd', 'exports-only']) {
       let amd;
       const sandbox = {};
+
       if (mode === 'commonjs') {
         sandbox.module = { exports: {} };
         sandbox.exports = sandbox.module.exports;
       }
+
       if (mode === 'exports-only') sandbox.exports = {};
       if (mode === 'worker-global') sandbox.self = sandbox;
       if (mode === 'amd') {
         sandbox.define = (dependencies, factory) => {
           amd = factory();
         };
+
         sandbox.define.amd = true;
       }
+
       script.runInNewContext(sandbox, { timeout: 5000 });
       const api =
         mode === 'commonjs'
@@ -141,11 +161,14 @@ function validate(root, output, fs) {
             : mode === 'exports-only'
               ? sandbox.exports.Functions
               : sandbox.Functions;
+
       validateApi(api, expected, filename, mode);
     }
   }
+
   checkSourceMap(output, fs);
 }
+
 async function build({
   root = path.resolve(__dirname, '..'),
   fs = nativeFs,
@@ -159,16 +182,20 @@ async function build({
   let keepRecoveryFiles = false;
   let failure;
   let failed = false;
+
   try {
     fs.mkdirSync(output);
     for (const file of [...consumerFiles, ...runtimeFiles(root)]) {
       fs.mkdirSync(path.dirname(path.join(output, file)), { recursive: true });
       fs.copyFileSync(path.join(root, file), path.join(output, file));
     }
+
     writeFunctionEntries(output, root, fs);
     const manifest = consumerManifest(root);
+
     fs.writeFileSync(path.join(output, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
     const bundles = path.join(output, 'dist');
+
     fs.mkdirSync(bundles);
     await bundle(output, bundles);
     await minify(output, bundles, fs, minifier);
@@ -177,18 +204,22 @@ async function build({
     function validateTargets(value) {
       if (typeof value === 'string') {
         const resolved = path.resolve(output, value);
+
         if (!resolved.startsWith(output + path.sep) || !fs.statSync(resolved).isFile())
           throw Error('Invalid package target: ' + value);
       } else Object.values(value).forEach(validateTargets);
     }
+
     validateTargets(manifest.exports);
     let hadPrevious = false;
+
     try {
       fs.renameSync(dist, backup);
       hadPrevious = true;
     } catch (error) {
       if (error?.code !== 'ENOENT') throw error;
     }
+
     try {
       fs.renameSync(output, dist);
     } catch (error) {
@@ -204,30 +235,37 @@ async function build({
           );
         }
       }
+
       throw error;
     }
   } catch (error) {
     failure = error;
     failed = true;
   }
+
   if (!keepRecoveryFiles) {
     try {
       fs.rmSync(stage, { recursive: true, force: true });
     } catch (error) {
       const message = `Staging cleanup failed at ${stage}: ${error?.message ?? String(error)}`;
+
       failure = failed
         ? new AggregateError([failure, error], (failure?.message ?? String(failure)) + '; ' + message)
         : Error(message, { cause: error });
       failed = true;
     }
   }
+
   if (failed) throw failure;
 }
+
 module.exports = { build };
 if (require.main === module) {
   if (process.argv.length > 2) throw Error('Usage: node scripts/build.js');
   build()
-    .then(() => console.log('Built and validated ' + NAME + ' consumer package, readable/minified UMD and source map.'))
+    .then(() =>
+      console.log('Built and validated ' + NAME + ' consumer package, readable/minified UMD and source maps.')
+    )
     .catch((error) => {
       console.error(error);
       process.exitCode = 1;

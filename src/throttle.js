@@ -1,9 +1,11 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
 var scheduleOptions = require('./util/scheduleOptions');
 var createScheduler = require('./util/createScheduler');
+
 /**
- * Creates a function that limits callback invocation frequency while calls continue.
+ * Creates a function that limits how often repeated calls start work while calls continue.
  * Defaults to leading and trailing execution; a lone leading call is not repeated. Uses the
  * latest arguments and receiver. `flush()` and `cancel()` can override ordinary spacing.
  * Invocation starts are limited; asynchronous work is not serialised or cancelled.
@@ -20,7 +22,7 @@ var createScheduler = require('./util/createScheduler');
  * @throws {TypeError} If callback, duration or option types are invalid.
  * @throws {RangeError} If the duration is outside its supported range. Immediate callback
  * errors propagate; timer callback errors go to the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#throttlefn-milliseconds-options | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#throttlefn-milliseconds-options | Full API documentation}
  * @example
  * const update = throttle(value => value, 100);
  * update("first");               // => "first"
@@ -33,6 +35,8 @@ var createScheduler = require('./util/createScheduler');
  */
 function throttle(fn, milliseconds, options) {
   expectFunction(fn);
+
   return createScheduler(fn, scheduleOptions(milliseconds, options, true, false));
 }
+
 module.exports = throttle;

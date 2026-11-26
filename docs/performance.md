@@ -15,7 +15,7 @@ into the 2.0.0 release candidate.
 
 ### Partial-application changes
 
-`partial` and `partialRight` now use direct argument forwarding when no arguments
+[`partial`](API.md#partialfn-args) and [`partialRight`](API.md#partialrightfn-args) now use direct argument forwarding when no arguments
 are saved, direct intrinsic invocation when none are supplied, and one combined
 array otherwise. There is no shared mutable invocation scratch buffer. Reflect.apply
 still supplies each proxy invocation with its own arguments array. Construction
@@ -79,13 +79,13 @@ reference and are not current full-library or bundle-size measurements.
 
 ### Changes retained
 
-Only three runtime modules changed from 2.0.0. `attempt` and `repeat` collect
+Only three runtime modules changed from 2.0.0. [`attempt`](API.md#attemptfn-args) and [`repeat`](API.md#repeatfn-count-args) collect
 callback arguments with native rest parameters instead of slicing `arguments`.
 This removes the explicit slicing call; it does not claim that rest parameters
 are universally allocation-free. Their reflected `length` values remain 2 and 3,
 respectively, with unchanged property descriptors.
 
-`pipe` invokes subsequent unary stages through a captured, uncurried intrinsic
+[`pipe`](API.md#pipefns) invokes subsequent unary stages through a captured, uncurried intrinsic
 `Function.prototype.call`. It no longer constructs an explicit `[result]` argument
 array at each subsequent stage. The first stage still receives all original
 arguments through `Reflect.apply`. This retains strict receiver forwarding,
@@ -95,7 +95,7 @@ invocations, and no generated code, caching or dependency was added to the runti
 
 Small-composition specialisations and in-place rest-array normalisation were
 tried but rejected: they complicated the implementation and regressed other
-workloads. Logical helpers, `spread`, `delay`, validation and count limits retain
+workloads. Logical helpers, [`spread`](API.md#spreadfn), [`delay`](API.md#delayfn-milliseconds-args), validation and count limits retain
 the 2.0.0 implementations. There is no eager preallocation of potentially enormous
 repetition result arrays.
 
@@ -166,8 +166,8 @@ npm run benchmark -- --rounds 2 --samples 7 --target-ms 6 --warmup-ms 20 --outpu
 npm run benchmark:browser -- --rounds 2 --samples 7 --target-ms 6 --warmup-ms 20 --output .benchmark-results/chromium.json
 ```
 
-The browser command needs Python Playwright and Chromium, as documented in the
-README. Longer runs are available by increasing `--samples`, `--target-ms`,
+The browser command needs Python Playwright and Chromium; see
+[Browser tooling](../CONTRIBUTING.md#browser-tooling). Longer runs are available by increasing `--samples`, `--target-ms`,
 `--warmup-ms` and `--rounds`. The defaults use longer samples than the recorded run.
 Both runners accept `--filter` to select a workload substring. The Node runner
 accepts `--baseline` and `--candidate` entry paths; the browser runner accepts

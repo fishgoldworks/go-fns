@@ -1,30 +1,29 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const crypto = require('node:crypto');
 const { parseArgs } = require('node:util');
 const layout = require('./package-layout');
+const readCandidate = require('./release-candidate');
 const checks = require('./check-test-output');
+const cleanup = require('./cleanup');
 const { values: options } = parseArgs({
-  options: { tarball: { type: 'string' }, node: { type: 'string' }, browser: { type: 'boolean' } }
+  options: {
+    tarball: { type: 'string' },
+    node: { type: 'string' },
+    browser: { type: 'boolean' },
+    'compare-package': { type: 'boolean' }
+  }
 });
-const tarball = path.resolve(options.tarball || layout.artifactPath());
-if (!fs.existsSync(tarball) || !fs.statSync(tarball).isFile())
-  throw Error('Missing release tarball: ' + tarball + '. Run npm run pack:package first.');
-const digest = crypto.createHash('sha256').update(fs.readFileSync(tarball)).digest('hex');
-if (fs.existsSync(tarball + '.sha256'))
-  assert.equal(
-    fs.readFileSync(tarball + '.sha256', 'utf8').split(/\s+/)[0],
-    digest,
-    'Release tarball SHA256 mismatch.'
-  );
+const { tarball, sha256: digest, files } = readCandidate(options.tarball ?? layout.artifactPath());
 const root = path.resolve(__dirname, '..');
 const pkg = require('../package.json');
 const lock = require('../package-lock.json');
 const npmCli = process.env.npm_execpath;
+
 if (!npmCli) throw new Error('Run this check with npm run test:package.');
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -34,16 +33,21 @@ function run(command, args, options = {}) {
     maxBuffer: 20 * 1024 * 1024,
     ...options
   });
+
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} failed (${result.status}):\n${result.stdout}\n${result.stderr}`);
+
   return result.stdout;
 }
+
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
+
     return entry.isDirectory() ? walk(full) : [full];
   });
 }
+
 for (const field of ['name', 'version']) assert.equal(lock[field], pkg[field]);
 for (const field of ['name', 'version', 'license', 'devDependencies'])
   assert.deepEqual(lock.packages[''][field], pkg[field]);
@@ -58,6 +62,7 @@ const expected = [
   'and',
   'andAsync',
   'applyIf',
+  'ary',
   'attempt',
   'attemptResult',
   'attemptResultAsync',
@@ -65,6 +70,7 @@ const expected = [
   'delay',
   'ifElse',
   'ifElseAsync',
+  'memoize',
   'nor',
   'norAsync',
   'not',
@@ -87,29 +93,25 @@ const expected = [
   'unary',
   'when',
   'whenAsync',
+  'withDefaultArgs',
   'xor',
   'xorAsync'
 ];
+
 assert.deepEqual(Object.keys(api).sort(), expected);
 // Catch newly added, unreferenced production files instead of quietly excluding them from coverage.
 const sourceFiles = layout
   .runtimeFiles(root)
   .filter((file) => file.endsWith('.js'))
   .map((file) => path.join(root, file));
+
 for (const filename of sourceFiles) assert.ok(require.cache[filename], 'Unloaded production module: ' + filename);
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'go-fns-consumer-'));
+let failure;
+
 try {
-  const files = run('tar', ['-tzf', tarball])
-    .trim()
-    .split(/\r?\n/)
-    .filter((file) => !file.endsWith('/'))
-    .map((file) => {
-      assert.ok(file.startsWith('package/'), 'Unexpected tarball path: ' + file);
-      return file.slice('package/'.length);
-    })
-    .sort();
-  assert.deepEqual(files, layout.inventory());
   const consumer = path.join(temporary, 'consumer');
+
   fs.mkdirSync(consumer);
   fs.writeFileSync(
     path.join(consumer, 'package.json'),
@@ -121,13 +123,18 @@ try {
     { cwd: consumer }
   );
   const installed = path.join(consumer, 'node_modules/go-fns');
+
   require('./lib/check-library-readme.cjs').checkPackage(installed);
   const licence = fs.readFileSync(path.join(root, 'LICENSE.md'), 'utf8').replace(/\r\n/g, '\n').trim();
+
   for (const file of ['go-fns.js', 'go-fns.min.js']) {
     const bundle = fs.readFileSync(path.join(installed, 'dist', file), 'utf8').replace(/\r\n/g, '\n');
+
     assert.ok(bundle.slice(0, bundle.indexOf('*/')).includes(licence), file + ' must carry the canonical licence');
   }
+
   const installedMetadata = JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8'));
+
   assert.deepEqual(installedMetadata, layout.consumerManifest());
   assert.equal(installedMetadata.devDependencies, undefined);
   assert.equal(installedMetadata.scripts, undefined);
@@ -143,19 +150,34 @@ try {
     fs.readFileSync(path.join(root, 'LICENSE.md'), 'utf8').replace(/\r\n/g, '\n')
   );
   const sourceFilesMatched = require('./check-package-sources')(root, installed);
+
+  if (options['compare-package']) {
+    for (const file of files) {
+      const built = fs.readFileSync(path.join(layout.packageRoot, file));
+      const packaged = fs.readFileSync(path.join(installed, file));
+
+      assert.ok(packaged.equals(built), 'Packaged file differs from the checked build: ' + file);
+    }
+  }
+
   require('./check-source-map')(path.join(installed, 'dist'));
   const runtimes = [...new Set([process.execPath, options.node].filter(Boolean))];
   const versions = [];
   const functionNames = layout.functionEntries(root).map(({ name }) => name);
+
   fs.copyFileSync(path.join(root, 'test/package/function-subpaths.cjs'), path.join(consumer, 'function-subpaths.cjs'));
   function runConsumer(runtime, args, settings = {}) {
     return run(runtime, args, { ...settings, env: { ...process.env, NODE_OPTIONS: '' } });
   }
+
   const examplePath = path.join(consumer, 'documentation-example.cjs');
+
   function checkCommonJsExamples(runtime, version) {
     let count = 0;
+
     for (const file of ['README.md', 'docs/API.md']) {
       const text = fs.readFileSync(path.join(installed, file), 'utf8').replace(/\r\n/g, '\n');
+
       for (const block of text.matchAll(/```javascript\n([^]*?)\n```/g)) {
         if (!/\brequire\(['"]go-fns/.test(block[1])) continue;
         fs.writeFileSync(examplePath, block[1]);
@@ -170,17 +192,22 @@ try {
           );
         } catch (error) {
           const line = text.slice(0, block.index).split('\n').length;
+
           throw new Error(`${file}:${line} failed as CommonJS on ${version}.`, { cause: error });
         }
+
         count++;
       }
     }
+
     console.log(`${count} CommonJS documentation examples passed on ${version}.`);
   }
+
   fs.copyFileSync(path.join(root, 'test/package/consumer.cjs'), path.join(consumer, 'consumer.cjs'));
   fs.copyFileSync(path.join(root, 'test/package/capabilities.cjs'), path.join(consumer, 'capabilities.cjs'));
   for (const runtime of runtimes) {
     const version = runConsumer(runtime, ['--version']).trim();
+
     versions.push(version);
     checks.completion(
       runConsumer(runtime, [path.join(consumer, 'function-subpaths.cjs'), JSON.stringify(functionNames)], {
@@ -188,6 +215,7 @@ try {
       })
     );
     const output = runConsumer(runtime, [path.join(consumer, 'consumer.cjs')], { cwd: consumer });
+
     checks.consumerSummary(output, version);
     console.log(output.trim());
     const capabilityOutput = runConsumer(
@@ -196,6 +224,7 @@ try {
       { cwd: consumer }
     );
     const capabilityReport = JSON.parse(capabilityOutput);
+
     assert.equal(capabilityReport.runtime, version);
     assert.deepEqual(
       capabilityReport.capabilities.map((result) => result.entry),
@@ -205,9 +234,11 @@ try {
       assert.ok(result.scenarios > 0 && result.imports.length > 0);
       assert.equal(result.cases, result.scenarios * result.imports.length);
     }
+
     console.log(capabilityOutput.trim());
     checkCommonJsExamples(runtime, version);
   }
+
   for (const file of ['README.md', 'docs/API.md']) {
     assert.deepEqual(
       fs.readFileSync(path.join(installed, file)),
@@ -215,6 +246,7 @@ try {
       'Packaged document differs: ' + file
     );
   }
+
   require('./documentation-contract')(
     fs.readFileSync(path.join(installed, 'README.md'), 'utf8'),
     fs.readFileSync(path.join(installed, 'docs/API.md'), 'utf8'),
@@ -226,6 +258,7 @@ try {
     env: { ...process.env, GO_FNS_TEST_ENTRY: entry }
   });
   const count = checks.tapSummary(output);
+
   if (process.env.GO_FNS_EVIDENCE_DIR)
     fs.writeFileSync(path.join(process.env.GO_FNS_EVIDENCE_DIR, 'packed-consumer.tap'), output);
   run(
@@ -290,15 +323,20 @@ import {debounce,throttle,partial,partialRight,unary,when,ifElse,repeatAsync} fr
     'overloaded-results',
     'receiver-composition',
     'bound-tuple-unions',
-    'result'
+    'result',
+    'ary',
+    'memoize'
   ];
+
   for (const name of typeFixtures) {
     const source = fs
       .readFileSync(path.join(root, 'test/types', name + '.ts'), 'utf8')
       .replace(/'\.\.\/\.\.(?:\/index)?'/g, "'go-fns'")
       .replace(/'\.\.\/\.\.\/src\//g, "'go-fns/src/");
+
     for (const extension of ['.cts', '.mts']) fs.writeFileSync(path.join(consumer, name + extension), source);
   }
+
   fs.writeFileSync(
     path.join(consumer, 'tsconfig.json'),
     JSON.stringify({
@@ -319,6 +357,7 @@ import {debounce,throttle,partial,partialRight,unary,when,ifElse,repeatAsync} fr
     })
   );
   const typeCompiler = process.env.TYPESCRIPT_COMPILER || require.resolve('typescript/bin/tsc');
+
   run(process.execPath, [typeCompiler, '-p', path.join(consumer, 'tsconfig.json')], { cwd: consumer });
 
   const executable = `import api, {pipe, partial, partialRight, repeatAsync, debounce, sleep, result, notAsync, andAsync, orAsync, whenAsync, ifElseAsync, norAsync, xorAsync} from 'go-fns';
@@ -336,7 +375,7 @@ async function main() {
     const evaluated: number = result((a, b) => a + b, 2, 3);
     if (evaluated !== 5 || resultDeep !== result || result(api) !== api) throw Error('Result import behaviour');
     const number: number = api.pipe((value: number) => value + 1)(2);
-    if (number !== 3 || Object.keys(api).length !== 34) throw Error('Incomplete default API');
+    if (number !== 3 || Object.keys(api).length !== ${expected.length}) throw Error('Incomplete default API');
     if (api.notAsync !== notAsync || api.andAsync !== andAsync || api.orAsync !== orAsync ||
         notDeep !== notAsync || andDeep !== andAsync || orDeep !== orAsync) throw Error('Async predicate import identity');
     const negated: boolean = await notAsync(async (value: number) => value > 0)(-1);
@@ -357,14 +396,17 @@ async function main() {
     scheduled.cancel(); await sleep(0);
 }
 main().then(() => console.log(${JSON.stringify(checks.completionMarker)})).catch(error => { setTimeout(() => { throw error; },0); });`;
+
   for (const extension of ['ts', 'cts', 'mts']) {
     // ESM uses the public default function export from the CommonJS deep module.
     const text =
       extension === 'mts'
         ? executable.replace(/import (\w+) = require\(([^)]+)\);/g, 'import $1 from $2;')
         : executable;
+
     fs.writeFileSync(path.join(consumer, 'default-import.' + extension), text);
   }
+
   const shared = {
     strict: true,
     noUncheckedIndexedAccess: true,
@@ -375,17 +417,21 @@ main().then(() => console.log(${JSON.stringify(checks.completionMarker)})).catch
     types: [],
     outDir: 'emitted'
   };
+
   for (const [mode, module, moduleResolution, files] of [
     ['classic', 'CommonJS', 'Node', ['default-import.ts']],
     ['nodenext', 'NodeNext', 'NodeNext', ['default-import.cts', 'default-import.mts']]
   ]) {
     const config = path.join(consumer, 'tsconfig.' + mode + '.json');
+
     fs.writeFileSync(config, JSON.stringify({ compilerOptions: { ...shared, module, moduleResolution }, files }));
     run(process.execPath, [typeCompiler, '-p', config], { cwd: consumer });
   }
+
   for (const mode of ['classic', 'nodenext']) {
     const esmMode = mode === 'nodenext';
     const lines = ["import api from 'go-fns';"];
+
     for (const name of functionNames) {
       lines.push(
         esmMode
@@ -397,6 +443,7 @@ main().then(() => console.log(${JSON.stringify(checks.completionMarker)})).catch
         `if (${name}Typed !== api.${name}${esmMode ? ` || ${name}Named !== api.${name}` : ''}) throw Error('${name} identity');`
       );
     }
+
     lines.push("const transformed: number = applyIfDefault('42', true, value => Number(value));");
     lines.push('const resolved: number = resultDefault((value: number) => value + 1, 2);');
     lines.push('const piped: number = pipeDefault((value: number) => value + 1)(2);');
@@ -405,6 +452,7 @@ main().then(() => console.log(${JSON.stringify(checks.completionMarker)})).catch
     lines.push(`console.log(${JSON.stringify(checks.completionMarker)});`);
     const source = 'function-subpaths.' + (esmMode ? 'mts' : 'ts');
     const config = path.join(consumer, 'subpaths-' + mode + '.json');
+
     fs.writeFileSync(path.join(consumer, source), lines.join('\n'));
     fs.writeFileSync(
       config,
@@ -421,6 +469,7 @@ main().then(() => console.log(${JSON.stringify(checks.completionMarker)})).catch
     );
     run(process.execPath, [typeCompiler, '-p', config], { cwd: consumer });
   }
+
   const esm = `import api,{${expected.join(',')}} from 'go-fns';
 import assert from 'assert';
 const named={${expected.join(',')}};
@@ -449,11 +498,13 @@ async function checkPredicates() {
   assert.strictEqual(await orAsync(() => false,async () => true)(),true);
 }
 checkPredicates().then(() => console.log(${JSON.stringify(checks.completionMarker)})).catch(error => { setTimeout(() => { throw error; },0); });`;
+
   fs.writeFileSync(path.join(consumer, 'imports.mjs'), esm);
   for (const runtime of runtimes) {
     for (const file of ['default-import.js', 'default-import.cjs', 'function-subpaths.js'])
       checks.completion(runConsumer(runtime, [path.join(consumer, 'emitted', file)], { cwd: consumer }));
     const version = runConsumer(runtime, ['-p', 'process.versions.node']);
+
     if (require('./runtime-support')(version)) {
       checks.completion(runConsumer(runtime, [path.join(consumer, 'imports.mjs')], { cwd: consumer }));
       checks.completion(runConsumer(runtime, [path.join(consumer, 'emitted/default-import.mjs')], { cwd: consumer }));
@@ -462,12 +513,14 @@ checkPredicates().then(() => console.log(${JSON.stringify(checks.completionMarke
       );
     }
   }
+
   if (options.browser) {
     console.log(run('python', [path.join(root, 'scripts/test-browser-driver.py')]));
     console.log(
       run('python', [path.join(root, 'scripts/test-browser.py'), '--package-root', installed], { timeout: 210000 })
     );
   }
+
   console.log(
     JSON.stringify(
       {
@@ -479,6 +532,7 @@ checkPredicates().then(() => console.log(${JSON.stringify(checks.completionMarke
         files: files.length,
         sourceModules: sourceFiles.length + 1,
         sourceFilesMatched,
+        ...(options['compare-package'] ? { buildFilesMatched: files.length } : {}),
         tests: count,
         status: 'passed',
         importModes: ['CommonJS', 'ESM named', 'ESM default'],
@@ -489,6 +543,12 @@ checkPredicates().then(() => console.log(${JSON.stringify(checks.completionMarke
       2
     )
   );
+} catch (error) {
+  failure = { error };
 } finally {
-  fs.rmSync(temporary, { recursive: true, force: true });
+  cleanup(
+    [() => fs.rmSync(temporary, { recursive: true, force: true })],
+    failure,
+    'Consumer cleanup failed at ' + temporary
+  );
 }

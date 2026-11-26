@@ -20,7 +20,7 @@ var apply = Reflect.apply;
  * with the original value.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated synchronously, including those that would be skipped by short circuit.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
  * @example
  * const exactlyOne = xorAsync(value => typeof value === 'number', async value => value > 0);
  * await exactlyOne(-3);                                  // => true
@@ -36,6 +36,7 @@ function xorAsync(fns) {
 
   return async function () {
     var passed = 0;
+
     for (var i = 0; i < fns.length; i++) {
       if (await apply(fns[i], this, arguments)) {
         if (++passed > 1) {
@@ -43,6 +44,7 @@ function xorAsync(fns) {
         }
       }
     }
+
     return passed === 1;
   };
 }

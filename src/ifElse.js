@@ -1,8 +1,10 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
 var apply = Reflect.apply;
+
 /**
- * Creates a function that evaluates a predicate once and calls the matching branch.
+ * Creates a reusable function that chooses between two callbacks based on a predicate result.
  * All call arguments and the caller's `this` reach the predicate and selected branch. The
  * other branch is not called. Predicate promises are truthy without awaiting; the selected
  * branch result is returned unchanged.
@@ -14,7 +16,7 @@ var apply = Reflect.apply;
  * or the `onFalse` result otherwise.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
  * @example
  * const describe = ifElse(value => value > 0, () => "positive", () => "not positive");
  * describe(3);                   // => "positive"
@@ -27,9 +29,12 @@ function ifElse(predicate, onTrue, onFalse) {
   expectFunction(predicate);
   expectFunction(onTrue);
   expectFunction(onFalse);
+
   return function () {
     var branch = apply(predicate, this, arguments) ? onTrue : onFalse;
+
     return apply(branch, this, arguments);
   };
 }
+
 module.exports = ifElse;

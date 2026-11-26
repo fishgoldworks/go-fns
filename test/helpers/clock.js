@@ -1,4 +1,5 @@
 'use strict';
+
 // Deterministic host clock; exercises real wrappers, not mocked wrapper behavior.
 function withClock(run) {
   const original = {
@@ -26,27 +27,35 @@ function withClock(run) {
     tick(milliseconds) {
       const end = now + milliseconds;
       let count = 0;
+
       while (true) {
         const ready = [...tasks]
           .filter(([, task]) => task.time <= end)
           .sort((a, b) => a[1].time - b[1].time || a[0] - b[0])[0];
+
         if (!ready) break;
         if (++count > 5000) throw new Error('Unbounded timer loop in test');
         now = Math.max(now, ready[1].time);
         tasks.delete(ready[0]);
         ready[1].fn();
       }
+
       now = end;
     }
   };
+
   globalThis.setTimeout = (fn, wait) => {
     const id = nextId++;
+
     tasks.set(id, { fn, time: now + Math.max(0, wait) });
+
     return id;
   };
+
   globalThis.clearTimeout = (id) => {
     tasks.delete(id);
   };
+
   Date.now = () => now + wallOffset;
   Object.defineProperty(globalThis, 'performance', { configurable: true, value: { now: () => now } });
   try {

@@ -12,7 +12,7 @@ var expectFunction = require('../util/expectFunction');
  * `false`.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#notfn | Full API documentation}
  * @example
  * const isNotInteger = not(Number.isInteger);
  * isNotInteger(1.5);             // => true

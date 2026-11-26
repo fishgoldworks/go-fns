@@ -197,10 +197,11 @@ class DocumentedExampleTests(unittest.TestCase):
 
     def test_captures_annotated_expression_results_without_console_output(self):
         example = self.read_example('https://cdn.jsdelivr.net/npm/go-fns@2.0.0/dist/go-fns.min.js',
-                                    inline='2;  // => 2\n[3.1];  // => [3.1]')
-        self.assertEqual(example['expected'], [2, [3.1]])
-        self.assertIn('window.__goFnsExampleOutput.push(2);', example['html'])
-        self.assertIn('window.__goFnsExampleOutput.push([3.1]);', example['html'])
+                                    inline='prepareTitle("  Draft  ");  // => "Draft"\n'
+                                           'prepareTitle("   ");  // => "Untitled"')
+        self.assertEqual(example['expected'], ['Draft', 'Untitled'])
+        self.assertIn('window.__goFnsExampleOutput.push(prepareTitle("  Draft  "));', example['html'])
+        self.assertIn('window.__goFnsExampleOutput.push(prepareTitle("   "));', example['html'])
 
     def test_rejects_other_versions_packages_hosts_and_paths(self):
         for url in ['https://cdn.jsdelivr.net/npm/go-fns@1.0.0/dist/go-fns.min.js',
@@ -210,6 +211,15 @@ class DocumentedExampleTests(unittest.TestCase):
                     'https://cdn.jsdelivr.net/npm/go-fns@2.0.0/dist/go-fns.min.js?version=1']:
             with self.subTest(url=url), self.assertRaises(ValueError):
                 self.read_example(url)
+
+
+benchmark_spec = importlib.util.spec_from_file_location(
+    'benchmark_driver_tests',
+    Path(__file__).resolve().parents[1] / 'test/browser/benchmark-drivers.test.py'
+)
+benchmark_tests = importlib.util.module_from_spec(benchmark_spec)
+benchmark_spec.loader.exec_module(benchmark_tests)
+BenchmarkDriverTests = benchmark_tests.BenchmarkDriverTests
 
 
 if __name__ == '__main__':

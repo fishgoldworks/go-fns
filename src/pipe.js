@@ -5,7 +5,7 @@ var normalizeFunctions = require('./util/normalizeFunctions');
 var call = Function.prototype.call.bind(Function.prototype.call);
 
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -15,7 +15,7 @@ var call = Function.prototype.call.bind(Function.prototype.call);
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  * @example
  * const doubleSum = pipe((a, b) => a + b, value => value * 2);
  * doubleSum(2, 3);               // => 10
@@ -29,9 +29,11 @@ function pipe(fns) {
 
   return function () {
     var result = queue.length > 0 ? Reflect.apply(queue[0], this, arguments) : undefined;
+
     for (var i = 1; i < queue.length; i++) {
       result = call(queue[i], this, result);
     }
+
     return result;
   };
 }

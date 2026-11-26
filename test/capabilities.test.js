@@ -1,6 +1,8 @@
 'use strict';
+
 const path = require('node:path');
 const run = require('./helpers/capabilities');
+
 suite('optional runtime capabilities before import', () => {
   test('root/focused imports and distributed loaders preserve their contracts', async () => {
     await run(

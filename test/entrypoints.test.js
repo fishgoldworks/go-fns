@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 
 suite('package entry point', function () {
@@ -8,6 +9,7 @@ suite('package entry point', function () {
       'and',
       'andAsync',
       'applyIf',
+      'ary',
       'attempt',
       'attemptResult',
       'attemptResultAsync',
@@ -15,6 +17,7 @@ suite('package entry point', function () {
       'delay',
       'ifElse',
       'ifElseAsync',
+      'memoize',
       'nor',
       'norAsync',
       'not',
@@ -37,9 +40,11 @@ suite('package entry point', function () {
       'unary',
       'when',
       'whenAsync',
+      'withDefaultArgs',
       'xor',
       'xorAsync'
     ];
+
     assert.deepEqual(Object.keys(api).sort(), expected);
     for (const name of expected) assert.equal(typeof api[name], 'function');
   });

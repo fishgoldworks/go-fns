@@ -1,5 +1,7 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
+
 /**
  * Invokes a callback synchronously and reports success or failure in a result object.
  * Check `ok` to distinguish a returned value from a thrown value. The callback itself is its
@@ -10,7 +12,7 @@ var expectFunction = require('./util/expectFunction');
  * }` with the exact thrown value.
  * @throws {TypeError} If `fn` is not a function; invalid callbacks throw instead of producing
  * a failure result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
  * @example
  * attemptResult(JSON.parse, '{"theme":"dark"}');   // => { ok: true, value: { theme: "dark" } }
  * attemptResult(() => { throw undefined; });       // => { ok: false, error: undefined }
@@ -26,4 +28,5 @@ function attemptResult(fn, ...args) {
     return { ok: false, error: error };
   }
 }
+
 module.exports = attemptResult;

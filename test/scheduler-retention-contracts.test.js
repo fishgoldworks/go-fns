@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const api = require('./helpers/api');
 const withClock = require('./helpers/clock');
@@ -16,11 +17,13 @@ suite('scheduler retained-input compatibility', function () {
         const fn = api[name](
           function (value) {
             calls.push([this, value]);
+
             return result;
           },
           10,
           { leading: true, trailing: false }
         );
+
         assert.equal(fn.call(firstThis, 'first'), result);
         for (let i = 0; i < 9; i++) {
           clock.tick(1);
@@ -28,6 +31,7 @@ suite('scheduler retained-input compatibility', function () {
           assert.equal(fn.pending(), false);
           assert.equal(fn.flush(), result);
         }
+
         assert.equal(calls.length, 1);
         clock.tick(20);
         assert.equal(clock.tasks.size, 0);
@@ -51,22 +55,32 @@ suite('scheduler retained-input compatibility', function () {
           const fn = api[name](
             function () {
               received.push([this, ...arguments]);
+
               return arguments[0];
             },
             10,
             { leading: true, trailing: false }
           );
+
           globalThis.setTimeout = (callback, delay) => {
             if (!reentered) {
               reentered = true;
               assert.equal(fn.call(replacement, 'latest', undefined), undefined);
             }
+
             const id = register(callback, delay);
-            if (handleKind === 'zero') return id;
+
+            if (handleKind === 'zero') {
+              return id;
+            }
+
             const handle = { id };
+
             handles.set(handle, id);
+
             return handle;
           };
+
           globalThis.clearTimeout = (handle) => clear(handleKind === 'zero' ? handle : handles.get(handle));
           assert.equal(fn('original'), 'latest');
           assert.deepEqual(received, [[replacement, 'latest', undefined]]);
@@ -81,10 +95,12 @@ suite('scheduler retained-input compatibility', function () {
       withClock((clock) => {
         const seen = [];
         let fn;
+
         fn = api[name](
           (value) => {
             seen.push(value);
             if (value === 'outer') assert.equal(fn('suppressed'), undefined);
+
             return value;
           },
           10,
@@ -105,14 +121,17 @@ suite('scheduler retained-input compatibility', function () {
         const fn = api[name](
           (value) => {
             calls.push(value);
+
             return value;
           },
           10,
           { leading: true, trailing: false }
         );
+
         assert.equal(fn('first'), 'first');
         fn('discarded');
         const { cancel, pending, flush } = fn;
+
         cancel();
         assert.equal(pending(), false);
         assert.equal(flush(), 'first');
@@ -129,11 +148,13 @@ suite('scheduler retained-input compatibility', function () {
         const fn = api[name](
           function (value) {
             calls.push([this, value]);
+
             return value;
           },
           10,
           { leading: true, trailing: true }
         );
+
         assert.equal(fn('first'), 'first');
         fn.call(receiver, token);
         assert.equal(fn.pending(), true);
@@ -153,12 +174,15 @@ suite('scheduler retained-input compatibility', function () {
         const fn = api[name](
           (value) => {
             seen.push(value);
+
             if (value === 'fail') throw failure;
+
             return value;
           },
           10,
           { leading: true, trailing: false }
         );
+
         assert.equal(fn(false), false);
         clock.tick(10);
         assert.throws(
@@ -178,6 +202,7 @@ suite('scheduler retained-input compatibility', function () {
       const fn = api.debounce(
         (value) => {
           seen.push(value);
+
           return value;
         },
         10,
@@ -187,11 +212,13 @@ suite('scheduler retained-input compatibility', function () {
           maxWait: 25
         }
       );
+
       assert.equal(fn('first'), 'first');
       for (let i = 1; i <= 5; i++) {
         clock.jump(5);
         fn(i);
       }
+
       assert.deepEqual(seen, ['first', 5]);
       assert.equal(fn.pending(), false);
       clock.tick(20);
@@ -205,6 +232,7 @@ suite('scheduler retained-input compatibility', function () {
       const fn = api.debounce(
         (value) => {
           seen.push(value);
+
           return value;
         },
         10,
@@ -214,19 +242,24 @@ suite('scheduler retained-input compatibility', function () {
           maxWait: 25
         }
       );
+
       fn('first');
       for (let i = 0; i < 4; i++) {
         clock.jump(5);
         fn('discarded');
       }
+
       let entered = false;
+
       globalThis.setTimeout = (callback, wait) => {
         if (!entered) {
           entered = true;
           fn('replacement');
         }
+
         return register(callback, wait);
       };
+
       clock.jump(5);
       assert.equal(fn('outer'), 'replacement');
       assert.deepEqual(seen, ['first', 'replacement']);

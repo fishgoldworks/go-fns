@@ -4,7 +4,7 @@ var expectFunction = require('./util/expectFunction');
 var apply = Reflect.apply;
 
 /**
- * Creates a function that awaits a predicate and runs only the matching branch.
+ * Creates a reusable function that awaits a predicate, then runs and awaits the selected branch.
  * Construction validates all three callbacks synchronously without invoking them. Each call
  * starts the predicate immediately and awaits its result before invoking the selected branch,
  * even when the predicate result is synchronous. Every callback receives all original call
@@ -16,7 +16,7 @@ var apply = Reflect.apply;
  * Callback throws and rejections stop evaluation and reject with the original value.
  * @throws {TypeError} If any required callback is not a function. Validation is synchronous,
  * including the branch that would not be selected.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
  * @example
  * const describe = ifElseAsync(async value => value > 0, () => "positive", async () => "not positive");
  * await describe(3);             // => "positive"
@@ -32,6 +32,7 @@ function ifElseAsync(predicate, onTrue, onFalse) {
 
   return async function () {
     var branch = (await apply(predicate, this, arguments)) ? onTrue : onFalse;
+
     return apply(branch, this, arguments);
   };
 }

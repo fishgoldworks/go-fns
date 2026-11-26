@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -9,6 +10,7 @@ const expected = [
   'and',
   'andAsync',
   'applyIf',
+  'ary',
   'attempt',
   'attemptResult',
   'attemptResultAsync',
@@ -16,6 +18,7 @@ const expected = [
   'delay',
   'ifElse',
   'ifElseAsync',
+  'memoize',
   'nor',
   'norAsync',
   'not',
@@ -38,24 +41,30 @@ const expected = [
   'unary',
   'when',
   'whenAsync',
+  'withDefaultArgs',
   'xor',
   'xorAsync'
 ];
 const results = [];
+
 for (const name of ['go-fns.js', 'go-fns.min.js']) {
   const filename = path.join(root, 'package/dist', name);
   const source = fs.readFileSync(filename, 'utf8');
+
   assert.ok(source.includes('go-fns v' + require('../package.json').version + ' |'));
   assert.ok(source.includes(require('../package.json').license));
   const readableApi = require('..');
   const bundledApi = require(filename);
+
   for (const key of expected) {
     assert.equal(bundledApi[key].name, readableApi[key].name);
     assert.equal(bundledApi[key].length, readableApi[key].length);
   }
+
   for (const mode of ['global', 'worker-global', 'amd', 'commonjs', 'exports-only']) {
     let amd;
     const sandbox = {};
+
     // Lazy clock selection must not make import depend on a host clock.
     Object.defineProperty(sandbox, 'performance', {
       get() {
@@ -68,12 +77,15 @@ for (const name of ['go-fns.js', 'go-fns.min.js']) {
         assert.equal(dependencies.length, 0);
         amd = factory();
       };
+
       sandbox.define.amd = true;
     }
+
     if (mode === 'commonjs') {
       sandbox.module = { exports: {} };
       sandbox.exports = sandbox.module.exports;
     }
+
     if (mode === 'exports-only') sandbox.exports = {};
     vm.runInNewContext(source, sandbox, { filename, timeout: 1000 });
     const api =
@@ -81,6 +93,7 @@ for (const name of ['go-fns.js', 'go-fns.min.js']) {
       (sandbox.module && sandbox.module.exports) ||
       (sandbox.exports && sandbox.exports.Functions) ||
       sandbox.Functions;
+
     assert.deepEqual(Object.keys(api).sort(), expected);
     for (const name of expected)
       for (const property of ['async', 'result', 'resultAsync', 'right'])
@@ -109,6 +122,7 @@ for (const name of ['go-fns.js', 'go-fns.min.js']) {
     // Importing/composing does not require a timer or a DOM.
     if (mode !== 'global' && mode !== 'worker-global') assert.equal(sandbox.Functions, undefined);
   }
+
   const run = spawnSync(process.execPath, ['scripts/test.js', '--test-reporter=tap', '--test-timeout=30000'], {
     cwd: root,
     env: { ...process.env, GO_FNS_TEST_ENTRY: filename },
@@ -116,13 +130,16 @@ for (const name of ['go-fns.js', 'go-fns.min.js']) {
     timeout: 40000,
     maxBuffer: 20 * 1024 * 1024
   });
+
   if (run.error) throw run.error;
   if (run.status !== 0) throw new Error(run.stdout + run.stderr);
   const count = require('./check-test-output').tapSummary(run.stdout);
+
   if (process.env.GO_FNS_EVIDENCE_DIR)
     fs.writeFileSync(path.join(process.env.GO_FNS_EVIDENCE_DIR, name + '.tap'), run.stdout + run.stderr);
   results.push({ bundle: name, tests: count, loaderModes: 5, status: 'passed' });
 }
+
 require('./check-source-map')(path.join(root, 'package/dist'));
 assert.ok(
   fs.statSync(path.join(root, 'package/dist/go-fns.min.js')).size <

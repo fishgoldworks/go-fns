@@ -1,5 +1,7 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
+
 /**
  * Creates a function that invokes its callback at most once and caches the first outcome.
  * The first call supplies the arguments and `this`; later calls ignore their inputs. Exact
@@ -11,7 +13,7 @@ var expectFunction = require('./util/expectFunction');
  * @throws {TypeError} If `fn` is not a function.
  * @throws {Error} If the wrapper is called recursively before its first callback returns. An
  * uncaught recursive-call error becomes the cached failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#oncefn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#oncefn | Full API documentation}
  * @example
  * let calls = 0;
  * const readOnce = once(() => ++calls);
@@ -27,10 +29,16 @@ function once(fn) {
   // 0 = not invoked, 1 = invoking, 2 = returned, 3 = threw.
   var state = 0;
   var result;
+
   return function () {
-    if (state === 2) return result;
+    if (state === 2) {
+      return result;
+    }
+
     if (state === 3) throw result;
+
     if (state === 1) throw new Error('Reentrant invocation of a once wrapper.');
+
     state = 1;
     try {
       result = Reflect.apply(fn, this, arguments);
@@ -42,8 +50,11 @@ function once(fn) {
       // Do not retain an otherwise unreachable callback after its sole invocation.
       fn = null;
     }
+
     if (state === 3) throw result;
+
     return result;
   };
 }
+
 module.exports = once;

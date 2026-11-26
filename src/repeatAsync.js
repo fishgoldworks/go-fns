@@ -1,6 +1,8 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
 var apply = Reflect.apply;
+
 /**
  * Invokes a callback a specified number of times sequentially, awaiting each result.
  * Each call receives the same arguments with the callback itself as its receiver; no index is
@@ -14,7 +16,7 @@ var apply = Reflect.apply;
  * @param {...*} args Arguments passed to the callback.
  * @returns {Promise<Array>} A promise resolving to a fresh array of awaited results in
  * invocation order; an empty array for a zero or nullish count.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
  * @example
  * let page = 0;
  * await repeatAsync(async () => ++page, 3);  // => [1, 2, 3]
@@ -28,14 +30,19 @@ async function repeatAsync(fn, count, ...args) {
   if (typeof count !== 'number') {
     throw new TypeError('Expected count to be a number.');
   }
+
   if (!Number.isInteger(count) || count < 0 || count > 4294967295) {
     throw new RangeError('Expected count to be an integer between 0 and 4294967295.');
   }
+
   var results = [];
+
   for (var i = 0; i < count; i++) {
     results[i] = await apply(fn, fn, args);
   }
+
   return results;
 }
+
 Object.defineProperty(repeatAsync, 'length', { value: 3 });
 module.exports = repeatAsync;

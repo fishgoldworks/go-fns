@@ -1,4 +1,5 @@
 'use strict';
+
 const fs = require('node:fs');
 const path = require('node:path');
 const Markdown = require('markdown-it');
@@ -8,16 +9,22 @@ function render(reference) {
   const markdown = new Markdown({ html: true });
   const anchors = headings(reference);
   let heading = 0;
+
   markdown.renderer.rules.heading_open = (tokens, index, options, env, self) => {
     tokens[index].attrSet('id', anchors[heading++].anchor);
+
     return self.renderToken(tokens, index, options);
   };
+
   // API.md lives in docs/; generated HTML lives one directory further down.
   markdown.renderer.rules.link_open = (tokens, index, options, env, self) => {
     const href = tokens[index].attrGet('href');
+
     if (href && !/^(?:#|[a-z]+:|\/)/i.test(href)) tokens[index].attrSet('href', '../' + href);
+
     return self.renderToken(tokens, index, options);
   };
+
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Go Functions API</title>
@@ -25,10 +32,12 @@ function render(reference) {
 </head><body><main>${markdown.render(reference)}</main></body></html>
 `;
 }
+
 module.exports = { render };
 if (require.main === module) {
   if (process.argv.length !== 2) throw Error('Usage: node scripts/docs-html.js');
   const destination = path.resolve(__dirname, '../docs/html');
+
   fs.mkdirSync(destination, { recursive: true });
   fs.writeFileSync(
     path.join(destination, 'index.html'),

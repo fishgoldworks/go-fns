@@ -15,7 +15,7 @@ var normalizeFunctions = require('../util/normalizeFunctions');
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
  * @example
  * const predicate = xor(value => typeof value === 'number', value => value > 0);
  * predicate(3);                  // => false
@@ -30,6 +30,7 @@ function xor(fns) {
 
   return function () {
     var passed = 0;
+
     for (var i = 0; i < fns.length; i++) {
       if (Reflect.apply(fns[i], this, arguments)) {
         if (++passed > 1) {
@@ -37,6 +38,7 @@ function xor(fns) {
         }
       }
     }
+
     return passed === 1;
   };
 }

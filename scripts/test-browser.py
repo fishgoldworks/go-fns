@@ -233,8 +233,8 @@ def check_example(browser, package_root):
         # Only this candidate's exact CDN URL is mapped to local bytes. No
         # public CDN or different package/version can make the example pass.
         page.route('**/*', route_request)
-        if example['expected'] != [2, [3.1]]:
-            raise AssertionError('README example must retain both documented result assertions.')
+        if example['expected'] != ['Draft', 'Untitled']:
+            raise AssertionError('README example must assert both the trimmed title and the blank-title fallback.')
         page.add_init_script('window.__goFnsExampleOutput = [];')
         page.goto(address, timeout=10000)
         page.wait_for_function('window.__goFnsExampleOutput.length >= 2', timeout=10000)

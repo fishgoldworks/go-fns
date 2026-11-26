@@ -1,8 +1,10 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
 var call = Function.prototype.call.bind(Function.prototype.call);
+
 /**
- * Creates a function that awaits an observer before returning its input value.
+ * Creates a function that awaits an observer before passing its input onward.
  * The observer receives exactly one input and the caller's `this`. A promise input reaches
  * the observer unchanged, but the returned promise resolves to its awaited value.
  * @param {Function} observer Synchronous or asynchronous observer receiving one input.
@@ -10,7 +12,7 @@ var call = Function.prototype.call.bind(Function.prototype.call);
  * promise inputs are unwrapped. Observer failures reject the wrapper promise.
  * @throws {TypeError} If `observer` is not a function. Later observer throws or rejections
  * reject the wrapper promise.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#tapasyncobserver | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#tapasyncobserver | Full API documentation}
  * @example
  * const seen = [];
  * const observe = tapAsync(async value => { seen.push(value); });
@@ -22,9 +24,12 @@ var call = Function.prototype.call.bind(Function.prototype.call);
  */
 function tapAsync(observer) {
   expectFunction(observer);
+
   return async function (value) {
     await call(observer, this, value);
+
     return value;
   };
 }
+
 module.exports = tapAsync;

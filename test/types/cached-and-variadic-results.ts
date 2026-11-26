@@ -4,12 +4,14 @@ import spreadDeep = require('../../src/spread');
 const generic = once(function <T>(value: T) {
   return value;
 });
+
 generic('first');
 // @ts-expect-error once caches the first result, not a new generic result per call
 const cachedNumber: number = generic(123);
 const genericAsync = once(async function <T>(value: T) {
   return value;
 });
+
 genericAsync('first');
 // @ts-expect-error the first promise does not resolve to the latest input type
 const cachedPromise: Promise<number> = genericAsync(123);
@@ -17,6 +19,7 @@ const concrete: number = once((n: number) => n + 1)(2);
 const asynchronous: Promise<number> = once(async (n: number) => n + 1)(2);
 
 const flags = partialRight((label: string, count?: number, ...flags: boolean[]) => count?.toFixed(), true);
+
 flags('hello', undefined);
 flags('hello', 3, false);
 // @ts-expect-error the appended boolean must not shift into count
@@ -26,6 +29,7 @@ flags('hello', false);
 // @ts-expect-error optional count must not contaminate the variadic item type
 partialRight((label: string, count?: number, ...fns: ((n: number) => string)[]) => fns[0](count ?? 0), 123);
 const defaults = partialRight((a?: number, b?: string, ...values: boolean[]) => values, true);
+
 defaults(undefined, undefined);
 defaults(1, 'x', false);
 // @ts-expect-error every optional prefix slot must be explicit with a saved suffix
@@ -33,14 +37,17 @@ defaults();
 // @ts-expect-error second optional position must not disappear
 defaults(1);
 const originalOptionals = partialRight((a?: number, ...flags: boolean[]) => flags);
+
 originalOptionals();
 originalOptionals(undefined, true);
 const savedFlags: boolean[] = [true, false];
+
 partialRight((label: string, count?: number, ...flags: boolean[]) => flags, ...savedFlags)('x', undefined);
 // @ts-expect-error wrong appended item type even with a union in the optional prefix
 partialRight((a?: string | number, ...values: boolean[]) => values, 'x');
 
 const format = spread((heading: string, ...ids: number[]) => heading.toUpperCase());
+
 // @ts-expect-error missing required heading
 format([]);
 // @ts-expect-error heterogeneous array-like does not preserve the heading position
@@ -49,10 +56,12 @@ format({ 0: 123, length: 1 });
 format([] as Array<string | number>);
 format(['heading', 1, 2] as const);
 const sum = spread((...ns: number[]) => ns.reduce((a, b) => a + b, 0));
+
 sum([]);
 sum({ 0: 2, 1: 3, length: 2 });
 sum();
 const trailing = spread((...args: [...number[], string]) => args);
+
 // @ts-expect-error required suffix must not disappear in a variadic tuple
 trailing([]);
 // @ts-expect-error array-like union loses required suffix
@@ -64,6 +73,7 @@ for (const factory of [and, or, xor, nor]) {
     (u: { active: boolean }) => u.active,
     (u: { verified: boolean }) => u.verified
   );
+
   both({ active: true, verified: true });
   // @ts-expect-error missing second predicate's required property
   both({ active: true });
@@ -75,16 +85,19 @@ for (const factory of [and, or, xor, nor]) {
       return this.b > x;
     }
   );
+
   receivers.call({ a: 1, b: 2 }, 0);
   // @ts-expect-error missing second callback's receiver
   receivers.call({ a: 1 }, 0);
 }
+
 // Existing contextual inference must survive the new heterogeneous overloads.
 const same = and(
   (u: { active: boolean }) => u.active,
   null,
   (u) => u.active
 );
+
 same({ active: true });
 
 const choose = ifElse(
@@ -93,6 +106,7 @@ const choose = ifElse(
   (v: number) => v.toFixed(2)
 );
 const text: string = choose(1);
+
 choose('a');
 // @ts-expect-error wrapper retains the original union input
 choose(true);
@@ -107,6 +121,7 @@ const guardThis = ifElse(
     return v;
   }
 );
+
 guardThis.call({ p: true, t: true, f: true }, 'x');
 // @ts-expect-error guard overload requires all three receivers
 guardThis.call({ p: true }, 'x');
@@ -119,6 +134,7 @@ const objectText: string = concatenate({ 0: 'a', 1: 'b', length: 2 });
 const readonlyText: string = concatenate(['a', 'b'] as const);
 const omittedText: string = concatenate();
 const nullText: string = concatenate(null);
+
 // @ts-expect-error array-like primitive strings are rejected by native apply
 concatenate('abc');
 declare const primitiveText: string;
@@ -133,4 +149,5 @@ spread((...values: unknown[]) => values.length)('abc');
 // @ts-expect-error focused imports retain the non-primitive argument-list contract
 spreadDeep((...parts: string[]) => parts.join(''))('abc');
 const typedSum: number = sum(new Uint8Array([1, 2]));
+
 void [boxedText, objectText, readonlyText, omittedText, nullText, typedSum];

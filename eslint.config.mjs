@@ -1,23 +1,19 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import { readabilityPlugins, readabilityRules } from './scripts/readability.mjs';
 
 export default [
   {
     ignores: [
       'node_modules/**',
       'package/**',
-      'dist/**',
-      'esm/**',
-      'es/**',
       'coverage/**',
       'artifacts/**',
-      'vendor/**',
       '**/temp/**',
       '**/.tmp/**',
       'nbproject/**',
       '.build-*/**',
-      '.package-*/**',
       '**/*.min.js',
       '**/*.map'
     ]
@@ -66,5 +62,30 @@ export default [
       'experimental/**'
     ]
   },
-  { files: ['test/browser/contracts.js'], languageOptions: { globals: { goFnsTestClock: 'readonly' } } }
+  {
+    files: ['**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        { selector: 'IfStatement > ReturnStatement', message: 'Wrap conditional returns in braces.' }
+      ]
+    }
+  },
+  // The shared checker is synchronised from its canonical owner.
+  { files: ['scripts/lib/check-library-readme.cjs'], rules: { 'no-restricted-syntax': 'off' } },
+  { files: ['test/browser/contracts.js'], languageOptions: { globals: { goFnsTestClock: 'readonly' } } },
+  {
+    name: 'go-fns/readability',
+    files: ['**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}'],
+    plugins: readabilityPlugins,
+    rules: readabilityRules
+  },
+  // This byte-identical canonical checker has an external owner; retain its correctness checks.
+  {
+    files: ['scripts/lib/check-library-readme.cjs'],
+    rules: {
+      'jsdoc/lines-before-block': 'off',
+      '@stylistic/padding-line-between-statements': 'off'
+    }
+  }
 ];

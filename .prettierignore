@@ -9,9 +9,9 @@ node_modules/
 /package/
 
 # Build staging and temporary files
-temp/
 .tmp/
 /.build-*/
+temp/
 
 # Coverage and local test results
 /.benchmark-results/

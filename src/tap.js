@@ -1,8 +1,10 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
 var call = Function.prototype.call.bind(Function.prototype.call);
+
 /**
- * Creates a function that calls an observer with one value and returns that value unchanged.
+ * Creates a function that observes an intermediate value in a pipeline and passes the original input onward.
  * The observer receives the caller's `this`. Its return value is ignored without awaiting.
  * Object identity is preserved, and mutations made by the observer remain visible.
  * @param {Function} observer Observer receiving exactly one input value.
@@ -10,7 +12,7 @@ var call = Function.prototype.call.bind(Function.prototype.call);
  * observer returns.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#tapobserver | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#tapobserver | Full API documentation}
  * @example
  * const seen = [];
  * const observe = tap(value => seen.push(value));
@@ -22,9 +24,12 @@ var call = Function.prototype.call.bind(Function.prototype.call);
  */
 function tap(observer) {
   expectFunction(observer);
+
   return function (value) {
     call(observer, this, value);
+
     return value;
   };
 }
+
 module.exports = tap;

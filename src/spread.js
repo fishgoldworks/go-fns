@@ -3,7 +3,7 @@
 var expectFunction = require('./util/expectFunction');
 
 /**
- * Creates a function that passes an array-like input to its callback as individual arguments.
+ * Creates a wrapper that lets a callback take an array-like argument list in place of separate arguments.
  * The returned function forwards its caller's `this` to the callback and returns promises
  * unchanged. Arrays, typed arrays and array-like objects work; `null` or `undefined` supplies
  * no arguments. Iterability alone does not expand a collection.
@@ -12,7 +12,7 @@ var expectFunction = require('./util/expectFunction');
  * list.
  * @throws {TypeError} If `fn` is not a function, or a later argument list is primitive and
  * non-nullish. Argument-list getter and callback errors propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#spreadfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#spreadfn | Full API documentation}
  * @example
  * const sum = spread((a, b) => a + b);
  * sum([1, 2]);                     // => 3

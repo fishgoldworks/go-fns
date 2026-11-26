@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const api = require('./helpers/api.js');
@@ -9,6 +10,7 @@ function deferred() {
     resolve = yes;
     reject = no;
   });
+
   return { promise, resolve, reject };
 }
 
@@ -38,10 +40,12 @@ suite('composition handoffs', function () {
               assert.equal(seen.includes(input), false);
               seen.push(input);
               input.length = 0;
+
               return first;
             }
           });
           const run = api[outer](api[inner](fn, ...a), ...b);
+
           assert.equal(run.apply(receiver, c), first);
           assert.equal(run.apply(receiver, c), first);
           assert.equal(seen.length, 2);
@@ -55,11 +59,13 @@ suite('composition handoffs', function () {
     const token = Object.freeze({});
     const prototype = { 1: token };
     const input = Object.create(prototype);
+
     Object.defineProperties(input, {
       length: {
         configurable: true,
         get() {
           log.push('length');
+
           return 3;
         }
       },
@@ -67,12 +73,14 @@ suite('composition handoffs', function () {
         get() {
           log.push('0');
           Object.defineProperty(input, 'length', { value: 0 });
+
           return undefined;
         }
       },
       2: {
         get() {
           log.push('2');
+
           return 'last';
         }
       },
@@ -84,8 +92,10 @@ suite('composition handoffs', function () {
     });
     const result = api.spread(function () {
       log.push('call');
+
       return Array.from(arguments);
     })(input);
+
     assert.deepEqual(result, [undefined, token, 'last']);
     assert.equal(result[1], token);
     assert.deepEqual(log, ['length', '0', '2', 'call']);
@@ -96,11 +106,14 @@ suite('composition handoffs', function () {
       function callback() {
         return { receiver: this, args: Array.from(arguments) };
       }
+
       const receiver = {};
       const list = { 0: 'zero', 1: 'one', length };
+
       assert.deepEqual(api.spread(callback).call(receiver, list), Reflect.apply(callback, receiver, list));
     });
   }
+
   test('spread propagates symbol length errors without reading numeric entries or invoking callback', function () {
     let invoked = false;
     const input = {
@@ -109,6 +122,7 @@ suite('composition handoffs', function () {
         return assert.fail('Length conversion must finish before indexed reads.');
       }
     };
+
     assert.throws(
       () =>
         api.spread(() => {
@@ -118,11 +132,13 @@ suite('composition handoffs', function () {
     );
     assert.equal(invoked, false);
   });
+
   test('spread allows argument getters to reenter the same wrapper without corrupting either call', function () {
     const receiver = {};
     const run = api.spread(
       api.partialRight(function () {
         assert.equal(this, receiver);
+
         return Array.from(arguments);
       }, 'suffix')
     );
@@ -131,10 +147,12 @@ suite('composition handoffs', function () {
       length: 2,
       get 0() {
         inner = run.call(receiver, ['nested']);
+
         return 'outer';
       },
       1: undefined
     };
+
     assert.deepEqual(run.call(receiver, input), ['outer', undefined, 'suffix']);
     assert.deepEqual(inner, ['nested', 'suffix']);
   });
@@ -147,13 +165,16 @@ suite('composition handoffs', function () {
         const steps = [];
         let expected = seed;
         const expectedSeen = [];
+
         for (let i = 0; i < 6; i++) {
           const choice = ((seed >>> (i % 4)) + i) % 4;
+
           if (choice === 0) {
             steps.push(
               api.partialRight(function (value, delta) {
                 assert.equal(this, receiver);
                 assert.equal(arguments.length, 2);
+
                 return value + delta + this.offset;
               }, i)
             );
@@ -180,14 +201,18 @@ suite('composition handoffs', function () {
               api.tap(function (value) {
                 assert.equal(this, receiver);
                 seen.push(value);
+
                 return 'ignored';
               })
             );
             expectedSeen.push(expected);
           }
+
           steps.push(i % 2 ? null : undefined);
         }
+
         const result = api[compose](...steps).call(receiver, seed);
+
         if (compose === 'pipe') assert.equal(result, expected);
         else assert.equal(await result, expected);
         assert.deepEqual(seen, expectedSeen);
@@ -204,12 +229,14 @@ suite('composition handoffs', function () {
           api.partial(function () {
             assert.equal(this, receiver);
             assert.deepEqual(Array.from(arguments), ['prefix', token, undefined]);
+
             return [token, 7];
           }, 'prefix')
         ),
         api.unary(function (input) {
           assert.equal(this, receiver);
           assert.equal(arguments.length, 1);
+
           return input;
         }),
         api.tap((input) => {
@@ -217,6 +244,7 @@ suite('composition handoffs', function () {
         })
       )
       .call(receiver, [token, undefined]);
+
     assert.deepEqual(value, [token, 7, 9]);
     assert.equal(value[0], token);
   });
@@ -229,6 +257,7 @@ suite('composition handoffs', function () {
         }
       });
       let wrapper;
+
       if (name === 'when')
         wrapper = api.when(
           () => false,
@@ -278,18 +307,25 @@ suite('composition handoffs', function () {
         };
         const predicate = () => {
           predicateCalls++;
+
           return thenable;
         };
+
         const selected = () => {
           branchCalls++;
+
           return thenable;
         };
+
         const selectedValue = () => {
           branchCalls++;
+
           return token;
         };
+
         const unused = () => assert.fail('Unselected branch');
         let operation;
+
         if (slot === 'pipeline stage') operation = api.pipeAsync(() => thenable);
         else if (slot === 'tap observer') operation = api.tapAsync(() => thenable);
         else if (slot === 'when predicate') operation = api.whenAsync(predicate, selectedValue);
@@ -303,8 +339,10 @@ suite('composition handoffs', function () {
           );
         const pending = api.pipeAsync(operation, (value) => {
           finalCalls++;
+
           return value;
         })(token);
+
         if (mode.startsWith('reject')) {
           await assert.rejects(pending, (error) => error === reason);
           assert.equal(finalCalls, 0);
@@ -312,6 +350,7 @@ suite('composition handoffs', function () {
           assert.equal(await pending, token);
           assert.equal(finalCalls, 1);
         }
+
         assert.equal(thenCalls, 1);
         if (slot.endsWith('predicate')) {
           assert.equal(predicateCalls, 1);
@@ -331,15 +370,18 @@ suite('composition handoffs', function () {
         function (x) {
           assert.equal(this, receiver);
           assert.equal(x, input);
+
           return gate.promise;
         },
         function (x) {
           seen = x;
+
           return x.value + this.value;
         },
         () => assert.fail('unselected')
       );
       const pending = run.call(receiver, input);
+
       input.value = 3;
       receiver.value = 4;
       gate.resolve(true);
@@ -358,6 +400,7 @@ suite('composition handoffs', function () {
           () => input
         );
         const pending = run(input);
+
         callback.revoke();
         gate.resolve(selected);
         if (selected) await assert.rejects(pending, TypeError);
@@ -372,14 +415,17 @@ suite('composition handoffs', function () {
     const input = {
       get then() {
         visits.push('input then');
+
         return (resolve) => resolve(7);
       }
     };
     const pending = api.tapAsync((x) => {
       assert.equal(x, input);
       visits.push('observer');
+
       return gate.promise;
     })(input);
+
     await Promise.resolve();
     assert.deepEqual(visits, ['observer']);
     gate.resolve();
@@ -394,7 +440,9 @@ suite('composition handoffs', function () {
     const run = api.pipeAsync(
       function (id) {
         const gate = deferred();
+
         gates.set(id, gate);
+
         return gate.promise;
       },
       api.whenAsync(
@@ -419,6 +467,7 @@ suite('composition handoffs', function () {
       failed = run.call(b, 'b'),
       last = run.call(c, 'c');
     const rejection = assert.rejects(failed, (e) => e === error);
+
     gates.get('c').resolve(4);
     assert.equal(await last, 33);
     gates.get('b').reject(error);
@@ -430,6 +479,7 @@ suite('composition handoffs', function () {
       [a, 14]
     ]);
     const next = run.call(b, 'next');
+
     gates.get('next').resolve(2);
     assert.equal(await next, 22);
   });
@@ -440,8 +490,10 @@ suite('composition handoffs', function () {
         '({ capture: function(value) { return { receiver: this, value }; }, global: this })'
       );
       const run = api[compose](api.partialRight(other.capture));
+
       assert.equal((await run.call(null, 7)).receiver, other.global);
       const receiver = {};
+
       assert.equal((await run.call(receiver, 8)).receiver, receiver);
     });
   }

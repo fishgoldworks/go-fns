@@ -16,7 +16,7 @@ var expectFunction = require('./util/expectFunction');
  * @throws {TypeError} If `fn` is not a function or `count` is non-nullish and not a number.
  * @throws {RangeError} If `count` is not an integer in the supported range. Callback errors
  * stop further calls and propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
  * @example
  * repeat(Math.floor, 3, 1.5);    // => [1, 1, 1]
  * repeat(Math.floor);            // => []
@@ -31,6 +31,7 @@ function repeat(fn, count, ...args) {
   if (typeof count !== 'number') {
     throw new TypeError('Expected count to be a number.');
   }
+
   // Every result must fit in an actual array; reject coercion and unbounded loops.
   if (!Number.isInteger(count) || count < 0 || count > 4294967295) {
     throw new RangeError('Expected count to be an integer between 0 and 4294967295.');
@@ -41,6 +42,7 @@ function repeat(fn, count, ...args) {
   for (var i = 0; i < count; i++) {
     results[i] = Reflect.apply(fn, fn, args);
   }
+
   return results;
 }
 

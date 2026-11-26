@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const { getEventListeners } = require('node:events');
 const api = require('./helpers/api');
@@ -15,18 +16,22 @@ suite('sleep registration ownership regressions', function () {
         const jobs = new Map();
         const cleared = [];
         let staleCallback;
+
         function register(fn) {
           assert.equal(this, globalThis);
           if (trigger === 'before-allocation') controller.abort(reason);
           staleCallback = fn;
           jobs.set(handle, fn);
           if (trigger === 'after-allocation') controller.abort(reason);
+
           return handle;
         }
+
         Object.defineProperty(globalThis, 'setTimeout', {
           configurable: true,
           get() {
             if (trigger === 'getter') controller.abort(reason);
+
             return register;
           }
         });
@@ -34,8 +39,10 @@ suite('sleep registration ownership regressions', function () {
           cleared.push(id);
           jobs.delete(id);
         };
+
         try {
           const waiting = api.sleep(60_000, { signal: controller.signal });
+
           await assert.rejects(waiting, (error) => error === reason);
           assert.equal(jobs.size, 0, 'settlement must not leave a newly registered timer alive');
           assert.deepEqual(cleared, [handle]);
@@ -57,15 +64,19 @@ suite('sleep registration ownership regressions', function () {
     const reason = {};
     const cleanupError = {};
     let cleared = 0;
+
     globalThis.setTimeout = () => {
       controller.abort(reason);
+
       return 0;
     };
+
     globalThis.clearTimeout = (handle) => {
       assert.equal(handle, 0);
       cleared++;
       throw cleanupError;
     };
+
     try {
       await assert.rejects(api.sleep(10, { signal: controller.signal }), (error) => error === reason);
       assert.equal(cleared, 1, 'cleanup of the late handle must still be attempted');
@@ -81,10 +92,13 @@ suite('sleep registration ownership regressions', function () {
     const originalClear = globalThis.clearTimeout;
     const controller = new AbortController();
     const cleared = [];
+
     globalThis.setTimeout = (fn) => {
       fn();
+
       return 0;
     };
+
     globalThis.clearTimeout = (handle) => cleared.push(handle);
     try {
       assert.equal(await api.sleep(10, { signal: controller.signal }), undefined);
@@ -108,19 +122,24 @@ suite('scheduler registration ownership regressions', function () {
           const f = api[name](
             (value) => {
               calls.push(value);
+
               return value;
             },
             10,
             { leading }
           );
+
           globalThis.setTimeout = function (fn, duration) {
             if (first) {
               first = false;
               f.cancel();
             }
+
             return originalSet(fn, duration);
           };
+
           let returned;
+
           assert.doesNotThrow(() => {
             returned = f('cancelled');
           });
@@ -140,13 +159,16 @@ suite('scheduler registration ownership regressions', function () {
           let first = true;
           const calls = [];
           const f = api[name]((value) => calls.push(value), 10, { leading });
+
           globalThis.setTimeout = function (fn, duration) {
             if (first) {
               first = false;
               f('latest');
             }
+
             return originalSet(fn, duration);
           };
+
           f('first');
           assert.equal(clock.tasks.size, 1, 'registration must already own the scheduling slot');
           clock.tick(10);
@@ -160,14 +182,17 @@ suite('scheduler registration ownership regressions', function () {
           let first = true;
           const calls = [];
           const f = api[name]((value) => calls.push(value), 10, { leading });
+
           globalThis.setTimeout = function (fn, duration) {
             if (first) {
               first = false;
               f.cancel();
               f('replacement');
             }
+
             return originalSet(fn, duration);
           };
+
           f('cancelled');
           assert.equal(clock.tasks.size, 1);
           clock.tick(10);
@@ -184,19 +209,23 @@ suite('scheduler registration ownership regressions', function () {
         const f = api[name](
           (value) => {
             calls.push(value);
+
             return value;
           },
           10,
           { leading: false }
         );
+
         globalThis.setTimeout = function (fn, duration) {
           if (first) {
             first = false;
             assert.equal(f.pending(), true);
             assert.equal(f.flush(), 'pending');
           }
+
           return originalSet(fn, duration);
         };
+
         assert.equal(f('pending'), 'pending');
         assert.equal(clock.tasks.size, 0);
         assert.equal(f.pending(), false);
@@ -211,6 +240,7 @@ suite('scheduler registration ownership regressions', function () {
         let first = true;
         const calls = [];
         const f = api[name]((value) => calls.push(value), 10, { leading: false });
+
         globalThis.setTimeout = function (fn, duration) {
           if (first) {
             first = false;
@@ -218,8 +248,10 @@ suite('scheduler registration ownership regressions', function () {
             f('replacement');
             throw error;
           }
+
           return originalSet(fn, duration);
         };
+
         assert.throws(
           () => f('cancelled'),
           (e) => e === error
@@ -239,12 +271,15 @@ suite('scheduler lifecycle integration', function () {
       withClock((clock) => {
         const seen = [];
         const f = api[name]((value) => seen.push([clock.now(), value]), 10, { leading: false });
+
         f('old');
         const expiredOwner = [...clock.tasks.values()][0].fn;
+
         f.cancel();
         clock.tick(3);
         f('new');
         const count = clock.tasks.size;
+
         expiredOwner();
         assert.equal(clock.tasks.size, count);
         assert.equal(f.pending(), true);
@@ -258,8 +293,10 @@ suite('scheduler lifecycle integration', function () {
       withClock((clock) => {
         const seen = [];
         const f = api[name]((value) => seen.push(value), 10, { leading: false });
+
         f('first');
         const [id, task] = [...clock.tasks][0];
+
         clock.tasks.delete(id);
         clock.jump(2);
         task.fn();
@@ -286,11 +323,13 @@ suite('scheduler lifecycle integration', function () {
                 f('replacement');
                 throw error;
               }
+
               return value;
             },
             10,
             { leading: false }
           );
+
           f('first');
           assert.throws(
             () => clock.tick(10),
@@ -312,19 +351,24 @@ suite('scheduler lifecycle integration', function () {
           const f = api[name](
             () => {
               calls++;
+
               return value;
             },
             10,
             { leading: false }
           );
+
           f();
           assert.equal(f.flush(), value);
           f.cancel();
           const originalSet = globalThis.setTimeout;
+
           globalThis.setTimeout = (fn, ms) => {
             f.cancel();
+
             return originalSet(fn, ms);
           };
+
           assert.equal(f(), value);
           assert.equal(f.flush(), value);
           assert.equal(f.pending(), false);
@@ -342,20 +386,25 @@ suite('scheduler lifecycle integration', function () {
         let lateHandle;
         const seen = [];
         const f = api[name]((value) => seen.push(value), 10, { leading: false });
+
         globalThis.setTimeout = function (fn, duration) {
           if (first) {
             first = false;
             f.cancel();
             f('replacement');
             lateHandle = originalSet(fn, duration);
+
             return lateHandle;
           }
+
           return originalSet(fn, duration);
         };
+
         globalThis.clearTimeout = (id) => {
           originalClear(id);
           if (id === lateHandle) throw error;
         };
+
         assert.throws(
           () => f('cancelled'),
           (e) => e === error
@@ -375,20 +424,25 @@ suite('scheduler lifecycle integration', function () {
             leading: false,
             ...(name === 'debounce' && useMaxWait ? { maxWait: 20 } : {})
           });
+
           f('first');
           globalThis.setTimeout = (fn, duration) => {
             f.cancel();
+
             return originalSet(fn, duration);
           };
+
           if (useMaxWait) {
             clock.jump(25);
             f('latest');
           } else {
             const [id, task] = [...clock.tasks][0];
+
             clock.tasks.delete(id);
             clock.jump(1);
             task.fn();
           }
+
           assert.deepEqual(seen, []);
           assert.equal(f.pending(), false);
           assert.equal(clock.tasks.size, 0);
@@ -407,17 +461,23 @@ suite('sleep and delay lifecycle integration', function () {
     const controller = new AbortController();
     let nextId = 0;
     let replacement;
+
     globalThis.setTimeout = (fn) => {
       const id = nextId++;
+
       jobs.set(id, fn);
+
       return id;
     };
+
     globalThis.clearTimeout = (id) => {
       jobs.delete(id);
       if (id === 0) replacement = api.sleep(20);
     };
+
     try {
       const waiting = api.sleep(10, { signal: controller.signal });
+
       controller.abort('cancelled');
       await assert.rejects(waiting, (e) => e === 'cancelled');
       assert.equal(jobs.size, 1);
@@ -437,11 +497,13 @@ suite('sleep and delay lifecycle integration', function () {
     const duration = {
       valueOf() {
         reads++;
+
         return 5;
       }
     };
     const payload = {};
     const callback = () => {};
+
     globalThis.setTimeout = function (fn, ms, value) {
       assert.equal(this, globalThis);
       assert.equal(fn, callback);
@@ -449,8 +511,10 @@ suite('sleep and delay lifecycle integration', function () {
       assert.equal(value, payload);
       assert.equal(reads, 0);
       assert.equal(Number(ms), 5);
+
       return 0;
     };
+
     try {
       assert.equal(api.delay(callback, duration, payload), 0);
       assert.equal(reads, 1);

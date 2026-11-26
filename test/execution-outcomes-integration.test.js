@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const api = require('./helpers/api.js');
@@ -9,6 +10,7 @@ function deferred() {
     resolve = yes;
     reject = no;
   });
+
   return { promise, resolve, reject };
 }
 
@@ -27,11 +29,14 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
   for (const name of ['attempt', 'attemptResult', 'attemptResultAsync']) {
     const invoke = api[name];
     const structured = name !== 'attempt';
+
     async function observed(callback, ...args) {
       const output = invoke(callback, ...args);
+
       // Await the async API only: the synchronous API must not assimilate its result.
       return name === 'attemptResultAsync' ? await output : { sync: output };
     }
+
     function extract(output) {
       return name === 'attemptResultAsync' ? output : output.sync;
     }
@@ -43,6 +48,7 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
           throw error;
         })
       );
+
       if (structured) {
         assert.equal(result.ok, false);
         assert.equal(result.error, error);
@@ -57,11 +63,14 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
       let calls = 0;
       const callback = () => {
         if (++calls % 2 === 1) throw error;
+
         return value;
       };
+
       const first = extract(await observed(callback));
       const second = extract(await observed(callback));
       const third = extract(await observed(callback));
+
       if (structured) {
         assert.deepEqual(first, { ok: false, error });
         assert.deepEqual(second, { ok: true, value });
@@ -72,6 +81,7 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
         assert.equal(second, value);
         assert.equal(third, error);
       }
+
       assert.equal(calls, 3);
     });
 
@@ -89,25 +99,31 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
           args[0].value++;
           args.length = 0;
           executions++;
+
           return executions;
         },
         get() {
           assert.fail('Callback properties must not be inspected');
         }
       });
+
       for (let i = 1; i <= 2; i++) {
         const result = extract(await observed(callback, ...original));
+
         assert.equal(structured ? result.value : result, i);
       }
+
       assert.deepEqual(original, [token, undefined, 'tail']);
       assert.equal(token.value, 3);
     });
 
     test(`${name}: invocation of an already-revoked callable is an execution failure`, async () => {
       const revoked = Proxy.revocable(() => assert.fail('revoked callback executed'), {});
+
       revoked.revoke();
       const result = extract(await observed(revoked.proxy));
       const error = structured ? result.error : result;
+
       if (structured) assert.equal(result.ok, false);
       assert.ok(error instanceof TypeError);
     });
@@ -117,19 +133,23 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
         '(() => { const error = new RangeError("foreign"); return { error, fn() { throw error; } }; })()'
       );
       const result = extract(await observed(realm.fn));
+
       assert.equal(structured ? result.error : result, realm.error);
       assert.equal(Object.getPrototypeOf(structured ? result.error : result), Object.getPrototypeOf(realm.error));
     });
 
     test(`${name}: generators are invoked, not iterated`, async () => {
       let bodyCalls = 0;
+
       function* callback(value) {
         bodyCalls++;
         assert.equal(this, callback);
         yield value;
       }
+
       const result = extract(await observed(callback, 'token'));
       const iterator = structured ? result.value : result;
+
       assert.equal(bodyCalls, 0);
       assert.deepEqual(iterator.next(), { value: 'token', done: false });
       assert.equal(bodyCalls, 1);
@@ -138,15 +158,20 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
     test(`${name}: nested wrappers keep their own callback receivers`, async () => {
       const inner = function () {
         assert.equal(this, inner);
+
         return 'inner';
       };
+
       const outer = function () {
         assert.equal(this, outer);
         assert.equal(api.attempt(inner), 'inner');
         assert.equal(this, outer);
+
         return 'outer';
       };
+
       const result = extract(await observed(outer));
+
       assert.equal(structured ? result.value : result, 'outer');
     });
   }
@@ -155,11 +180,13 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
     test(`${name}: a callback may successfully return a failure-shaped object`, async () => {
       const value = { ok: false, error: undefined };
       const result = name === 'attemptResult' ? api[name](() => value) : await api[name](() => value);
+
       assert.equal(result.ok, true);
       assert.equal(result.value, value);
       assert.deepEqual(Object.keys(result).sort(), ['ok', 'value']);
       assert.equal(Object.hasOwn(result, 'error'), false);
     });
+
     test(`${name}: returning and throwing the same Error remain distinct`, async () => {
       const error = new Error('exact outcome');
       const successes = api[name](() => error);
@@ -168,17 +195,21 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
       });
       const [success, failure] =
         name === 'attemptResult' ? [successes, failures] : await Promise.all([successes, failures]);
+
       assert.deepEqual(success, { ok: true, value: error });
       assert.deepEqual(failure, { ok: false, error });
     });
+
     test(`${name}: consumer mutation cannot affect a later result record`, async () => {
       const value = { shared: true };
       const first = await api[name](() => value);
+
       first.ok = false;
       first.value = 'replaced';
       first.error = 'consumer-added';
       Object.freeze(first);
       const next = await api[name](() => value);
+
       assert.notEqual(first, next);
       assert.deepEqual(next, { ok: true, value });
     });
@@ -188,8 +219,10 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
     const visits = [];
     const pending = api.attemptResultAsync(() => {
       visits.push('callback');
+
       return 3;
     });
+
     pending.then(() => visits.push('settled'));
     assert.deepEqual(visits, ['callback']);
     assert.deepEqual(await pending, { ok: true, value: 3 });
@@ -205,6 +238,7 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
       const thenable = {
         get then() {
           getterCalls++;
+
           return function (resolve, reject) {
             assert.equal(this, thenable);
             thenCalls++;
@@ -215,16 +249,19 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
               reject(error);
               resolve(value);
             }
+
             throw new Error('post-settlement exception');
           };
         }
       };
       const outcome = await api.attemptResultAsync(() => thenable);
+
       if (first === 'resolve') assert.deepEqual(outcome, { ok: true, value });
       else {
         assert.equal(outcome.ok, false);
         assert.equal(outcome.error, error);
       }
+
       assert.equal(getterCalls, 1);
       assert.equal(thenCalls, 1);
     });
@@ -242,6 +279,7 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
         started.resolve();
       }
     }));
+
     pending.then(() => {
       settled = true;
     });
@@ -257,10 +295,12 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
     const value = {
       get then() {
         reads++;
+
         return 17;
       }
     };
     const result = await api.attemptResultAsync(() => value);
+
     assert.equal(result.ok, true);
     assert.equal(result.value, value);
     assert.equal(reads, 1);
@@ -271,6 +311,7 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
     const result = await api.attemptResultAsync(() => {
       throw gate.promise;
     });
+
     assert.equal(result.ok, false);
     assert.equal(result.error, gate.promise);
     gate.resolve('late');
@@ -285,15 +326,19 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
         nested = api.attemptResultAsync(() => {
           throw error;
         });
+
         return (resolve) => resolve(9);
       }
     };
     const result = await api.attemptResultAsync(() => {
       outerCalls++;
+
       return value;
     });
+
     assert.deepEqual(result, { ok: true, value: 9 });
     const failure = await nested;
+
     assert.equal(failure.ok, false);
     assert.equal(failure.error, error);
     assert.equal(outerCalls, 1);
@@ -309,19 +354,23 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
         .attemptResultAsync(function callback(input) {
           assert.equal(this, callback);
           assert.equal(input, index);
+
           return gate.promise;
         }, index)
         .then((result) => {
           records.push(index);
+
           return result;
         })
     );
+
     gates[2].resolve(token);
     await pending[2];
     gates[1].reject(error);
     await pending[1];
     gates[0].resolve(undefined);
     const [a, b, c] = await Promise.all(pending);
+
     assert.deepEqual(records, [2, 1, 0]);
     assert.deepEqual(a, { ok: true, value: undefined });
     assert.equal(b.ok, false);
@@ -333,9 +382,11 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
 
   test('nested attemptResult treats an inner configuration error as the outer callback failure', async () => {
     const sync = api.attemptResult(() => api.attemptResult(null));
+
     assert.equal(sync.ok, false);
     assert.ok(sync.error instanceof TypeError);
     const async = await api.attemptResultAsync(() => api.attemptResultAsync(null));
+
     assert.equal(async.ok, false);
     assert.ok(async.error instanceof TypeError);
     assert.throws(() => api.attemptResult(null), TypeError);
@@ -348,11 +399,13 @@ suite('execution outcomes: invocation, failure and settlement boundaries', funct
     const returned = api.attempt(() => gate.promise);
     const recorded = api.attemptResult(() => returned);
     const awaited = api.attemptResultAsync(() => recorded.value);
+
     assert.equal(returned, gate.promise);
     assert.equal(recorded.ok, true);
     assert.equal(recorded.value, gate.promise);
     gate.reject(error);
     const outcome = await awaited;
+
     assert.equal(outcome.ok, false);
     assert.equal(outcome.error, error);
   });

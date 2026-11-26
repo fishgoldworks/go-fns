@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const api = require('./helpers/api.js');
 const clock = require('./helpers/clock.js');
@@ -10,6 +11,7 @@ suite('monotonic scheduling', function () {
         clock((c) => {
           const seen = [];
           const f = api[name]((x) => seen.push([c.now(), x]), 100, { leading: true, trailing: true });
+
           f('first');
           c.tick(1);
           c.wallJump(direction * 3600000);
@@ -20,6 +22,7 @@ suite('monotonic scheduling', function () {
             assert.equal(seen.length, 1);
             c.tick(1);
           }
+
           assert.deepEqual(seen, [
             [1000, 'first'],
             [name === 'debounce' ? 1101 : 1100, 'last']
@@ -27,10 +30,12 @@ suite('monotonic scheduling', function () {
           assert.equal(c.tasks.size, 0);
         }));
     }
+
     test(`maxWait uses elapsed time despite wall clock jump ${direction}`, () =>
       clock((c) => {
         const seen = [],
           f = api.debounce(() => seen.push(c.now()), 10, { maxWait: 25 });
+
         f();
         c.tick(5);
         c.wallJump(direction * 3600000);
@@ -38,22 +43,27 @@ suite('monotonic scheduling', function () {
           f();
           c.tick(5);
         }
+
         assert.deepEqual(seen, [1025]);
         c.tick(10);
         assert.equal(seen.length, 1);
       }));
   }
+
   test('clock is captured per wrapper and host receiver is retained', () =>
     clock((c) => {
       const host = {
         now() {
           assert.equal(this, host);
+
           return c.now();
         }
       };
+
       Object.defineProperty(globalThis, 'performance', { configurable: true, value: host });
       let calls = 0;
       const f = api.throttle(() => ++calls, 10);
+
       f();
       c.tick(1);
       Object.defineProperty(globalThis, 'performance', { configurable: true, value: { now: () => 1e9 } });
@@ -62,12 +72,14 @@ suite('monotonic scheduling', function () {
       c.tick(9);
       assert.equal(calls, 2);
     }));
+
   for (const missing of [undefined, null, {}, { now: 1 }]) {
     test(`fallback clock works without performance.now (${String(missing)})`, () =>
       clock((c) => {
         Object.defineProperty(globalThis, 'performance', { configurable: true, value: missing });
         let calls = 0;
         const f = api.debounce(() => ++calls, 10);
+
         f();
         c.tick(10);
         assert.equal(calls, 1);
@@ -85,25 +97,31 @@ suite('clock selection and adapter isolation', function () {
         const host = {
           get now() {
             reads++;
+
             return function () {
               assert.equal(this, host);
+
               return c.now();
             };
           }
         };
+
         Object.defineProperty(globalThis, 'performance', { configurable: true, value: host });
         const f = api[name](() => ++calls, 10, { leading: false });
+
         assert.equal(reads, 1);
         f();
         c.tick(10);
         assert.equal(calls, 1);
         assert.equal(reads, 1);
       }));
+
     test(`${name} uses the intrinsic bind rather than a clock function's property`, () =>
       clock((c) => {
         function now() {
           return c.now();
         }
+
         Object.defineProperty(now, 'bind', {
           get() {
             throw new Error('Unexpected property access');
@@ -112,13 +130,16 @@ suite('clock selection and adapter isolation', function () {
         Object.defineProperty(globalThis, 'performance', { configurable: true, value: { now } });
         let calls = 0;
         const f = api[name](() => ++calls, 10, { leading: false });
+
         f();
         c.tick(10);
         assert.equal(calls, 1);
       }));
   }
+
   for (const name of ['partial', 'partialRight']) {
     const values = [undefined, null, false, 0, -0, NaN, 1n, Symbol('value'), {}, [], function callback() {}];
+
     for (const fixed of [0, 1, 3, 7])
       for (const count of [0, 1, 8, 32]) {
         test(`${name} mixed values preserve identity: saved ${fixed}, supplied ${count}`, () => {
@@ -130,14 +151,17 @@ suite('clock selection and adapter isolation', function () {
             apply(target, thisArg, args) {
               assert.equal(thisArg, receiver);
               const expected = name === 'partial' ? [...saved, ...supplied] : [...supplied, ...saved];
+
               assert.equal(args.length, expected.length);
               for (let i = 0; i < args.length; i++) assert.ok(Object.is(args[i], expected[i]));
               seen.push(args);
               args.length = 0;
+
               return receiver;
             }
           });
           const wrapper = api[name](proxy, ...saved);
+
           assert.equal(Reflect.apply(wrapper, receiver, supplied), receiver);
           assert.equal(Reflect.apply(wrapper, receiver, supplied), receiver);
           assert.notEqual(seen[0], seen[1]);
@@ -160,8 +184,10 @@ suite('scheduler clock failure recovery', () => {
             let fail = false;
             const now = () => {
               if (fail) throw reason;
+
               return c.now();
             };
+
             Object.defineProperty(globalThis, 'performance', {
               configurable: true,
               value: clockSource === 'performance' ? { now } : undefined
@@ -172,11 +198,13 @@ suite('scheduler clock failure recovery', () => {
               function (value) {
                 assert.equal(this, receiver);
                 seen.push(value);
+
                 return value;
               },
               10,
               { leading: false }
             );
+
             scheduled.call(receiver, cached);
             c.tick(10);
             assert.equal(scheduled.flush(), cached);
@@ -185,6 +213,7 @@ suite('scheduler clock failure recovery', () => {
               c.tick(5);
               scheduled.call(receiver, discarded);
             }
+
             fail = true;
             assert.throws(
               () => c.tick(interrupted ? 5 : 10),
@@ -203,6 +232,7 @@ suite('scheduler clock failure recovery', () => {
             assert.equal(c.tasks.size, 0);
           }));
       }
+
       test(`${name} preserves new work created during a failing ${clockSource} read`, () =>
         clock((c) => {
           const reason = {},
@@ -217,18 +247,22 @@ suite('scheduler clock failure recovery', () => {
               scheduled.call(receiver, replacement);
               throw reason;
             }
+
             return c.now();
           };
+
           Object.defineProperty(globalThis, 'performance', {
             configurable: true,
             value: clockSource === 'performance' ? { now } : undefined
           });
           if (clockSource === 'Date') Date.now = now;
           const seen = [];
+
           scheduled = api[name](
             function (value) {
               assert.equal(this, receiver);
               seen.push(value);
+
               return value;
             },
             10,
@@ -264,15 +298,18 @@ suite('clock reentry preserves completion ownership', () => {
                 cached = {},
                 replacement = {};
               let onRead;
+
               Object.defineProperty(globalThis, 'performance', {
                 configurable: true,
                 value: {
                   now() {
                     if (onRead) {
                       const run = onRead;
+
                       onRead = undefined;
                       run();
                     }
+
                     return c.now();
                   }
                 }
@@ -282,11 +319,13 @@ suite('clock reentry preserves completion ownership', () => {
                 function (value) {
                   assert.equal(this, receiver);
                   seen.push(value);
+
                   return value;
                 },
                 10,
                 { leading: false }
               );
+
               scheduled.call(receiver, cached);
               assert.equal(scheduled.flush(), cached);
               scheduled.call(receiver, 'discarded');
@@ -295,7 +334,9 @@ suite('clock reentry preserves completion ownership', () => {
                 if (replace) scheduled.call(receiver, replacement);
                 if (failing) throw reason;
               };
+
               const complete = () => (edge === 'expiry' ? c.tick(10) : scheduled.flush());
+
               if (failing) assert.throws(complete, (error) => error === reason);
               else if (edge === 'flush') assert.equal(complete(), cached);
               else complete();

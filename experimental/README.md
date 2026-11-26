@@ -8,4 +8,4 @@ requires a separate API contract, implementation and regression tests.
 
 They are excluded from the public entry point, coverage and generated package.
 Supported sequential repetition and cancellable delay are available as
-`repeatAsync` and `sleep` in the public library.
+[`repeatAsync`](../docs/API.md#repeatasyncfn-count-args) and [`sleep`](../docs/API.md#sleepmilliseconds-options) in the public library.

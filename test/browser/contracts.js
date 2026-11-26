@@ -1,22 +1,28 @@
 'use strict';
+
 // Browser-only contract checks; loaded by scripts/test-browser.py without a CDN.
 window.runGoFnsBrowserContracts = async function (bundleSource) {
   const f = window.Functions;
   let cases = 0,
     assertions = 0;
+
   function equal(actual, expected) {
     assertions++;
     if (!Object.is(actual, expected)) throw new Error(`Expected ${String(expected)}, received ${String(actual)}`);
   }
+
   function throwsType(fn) {
     let error;
+
     try {
       fn();
     } catch (value) {
       error = value;
     }
+
     equal(error instanceof TypeError, true);
   }
+
   async function test(name, fn) {
     try {
       await fn();
@@ -25,6 +31,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       throw new Error(`${name}: ${error.message}`, { cause: error });
     }
   }
+
   // Each iframe loses capabilities before its own bundle is evaluated.
   for (const capability of [
     'present',
@@ -41,15 +48,18 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   ]) {
     await test('fresh browser capabilities: ' + capability, async () => {
       const frame = document.createElement('iframe');
+
       document.body.append(frame);
       try {
         const host = frame.contentWindow;
         const controller = new host.AbortController();
         const reason = {};
+
         if (capability === 'performance.now') {
           Object.defineProperty(host.performance, 'now', { value: undefined });
           equal(typeof host.performance.now, 'undefined');
         }
+
         const remove =
           capability === 'window-only'
             ? ['globalThis', 'self']
@@ -58,18 +68,22 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
               : ['performance', 'AbortController', 'AbortSignal', 'globalThis', 'self'].includes(capability)
                 ? [capability]
                 : [];
+
         for (const name of remove) {
           delete host[name];
           equal(typeof host[name], 'undefined');
         }
+
         if (capability.startsWith('signal.')) {
           Object.defineProperty(controller.signal, capability.slice(7), { value: undefined });
         }
+
         host.eval(bundleSource);
         const api = host.Functions,
           value = {},
           receiver = {};
-        equal(Object.keys(api).length, 34);
+
+        equal(Object.keys(api).length, 37);
         equal(
           api.applyIf(value, false, () => {
             throw Error('Skipped transform');
@@ -110,25 +124,31 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         );
         if (capability.startsWith('signal.')) {
           let error;
+
           try {
             await api.sleep(0, { signal: controller.signal });
           } catch (caught) {
             error = caught;
           }
+
           equal(error instanceof host.TypeError, true);
           equal(error.message.includes('AbortSignal-compatible'), true);
         } else {
           await api.sleep(0);
           const waiting = api.sleep(100, { signal: controller.signal });
+
           controller.abort(reason);
           let error;
+
           try {
             await waiting;
           } catch (caught) {
             error = caught;
           }
+
           equal(error, reason);
         }
+
         await new Promise((resolve, reject) =>
           api.delay(
             function (input) {
@@ -151,11 +171,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
               calls++;
               equal(this, receiver);
               equal(input, value);
+
               return input;
             },
             10,
             { leading: false }
           );
+
           scheduled.call(receiver, value);
           equal(calls, 0);
           equal(scheduled.pending(), true);
@@ -171,15 +193,17 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       }
     });
   }
-  await test('all thirty-four public exports', () =>
+
+  await test('all public exports', () =>
     equal(
       Object.keys(f).sort().join(','),
-      'and,andAsync,applyIf,attempt,attemptResult,attemptResultAsync,debounce,delay,ifElse,ifElseAsync,nor,norAsync,not,notAsync,once,or,orAsync,partial,partialRight,pipe,pipeAsync,repeat,repeatAsync,result,sleep,spread,tap,tapAsync,throttle,unary,when,whenAsync,xor,xorAsync'
+      'and,andAsync,applyIf,ary,attempt,attemptResult,attemptResultAsync,debounce,delay,ifElse,ifElseAsync,memoize,nor,norAsync,not,notAsync,once,or,orAsync,partial,partialRight,pipe,pipeAsync,repeat,repeatAsync,result,sleep,spread,tap,tapAsync,throttle,unary,when,whenAsync,withDefaultArgs,xor,xorAsync'
     ));
   await test('applyIf uses truthiness, preserves host values and forwards callback receivers', () => {
     const value = {},
       receiver = {},
       promise = Promise.resolve(false);
+
     equal(f.applyIf('42', true, Number), 42);
     equal(
       f.applyIf(value, false, () => {
@@ -206,6 +230,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       promise
     );
     let calls = 0;
+
     equal(
       f.applyIf.call(
         receiver,
@@ -215,12 +240,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(this, receiver);
           equal(arguments.length, 1);
           equal(input, value);
+
           return {};
         },
         function (input) {
           calls++;
           equal(this, receiver);
           equal(arguments.length, 1);
+
           return input;
         }
       ),
@@ -243,10 +270,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const value = {},
       promise = Promise.resolve(2),
       error = {};
+
     equal(f.result(value), value);
     equal(f.result(document.all), document.all);
     equal(f.result(promise), promise);
     let calls = 0;
+
     equal(
       f.result.call(
         value,
@@ -256,6 +285,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(arguments.length, 2);
           equal(a, value);
           equal(b, undefined);
+
           return promise;
         },
         value,
@@ -267,6 +297,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const inner = () => {
       throw Error('Unexpected recursion');
     };
+
     equal(
       f.result(() => inner),
       inner
@@ -276,11 +307,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         throw Error('Unexpected assimilation');
       }
     });
+
     equal(
       f.result(() => thenable),
       thenable
     );
     let caught;
+
     try {
       f.result(() => {
         throw error;
@@ -288,15 +321,18 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     } catch (failure) {
       caught = failure;
     }
+
     equal(caught, error);
   });
   await test('sleep rejects when an earlier native listener suppresses its abort event', async () => {
     const controller = new AbortController(),
       reason = {};
     const block = (event) => event.stopImmediatePropagation();
+
     controller.signal.addEventListener('abort', block);
     try {
       const pending = f.sleep(0, { signal: controller.signal });
+
       controller.abort(reason);
       await rejectsExact(pending, reason);
     } finally {
@@ -317,11 +353,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
                 : name === 'nor'
                   ? size > 0 && truths === 0
                   : truths === 1;
+
           equal(f[name](...values.map((value) => () => value))(), expected);
         });
       }
     }
   }
+
   await test('pipeline ignores all nullish positions', () =>
     equal(
       f.pipe(
@@ -338,19 +376,23 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     await test(`${name} preserves receiver`, () => {
       const receiver = {};
       let seen;
+
       f[name](function () {
         seen = this;
+
         return true;
       }).call(receiver);
       equal(seen, receiver);
     });
   }
+
   for (const [name, invoke] of [
     ['namespace', (...args) => f.delay(...args)],
     [
       'detached',
       (...args) => {
         const { delay } = f;
+
         return delay(...args);
       }
     ],
@@ -379,14 +421,17 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           undefined
         );
       });
+
       equal(typeof handle, 'number');
       synchronous = false;
       await complete;
     });
   }
+
   await test('timer cancellation', async () => {
     let calls = 0;
     const handle = f.delay(() => calls++, 0);
+
     clearTimeout(handle);
     await new Promise((resolve) => setTimeout(resolve, 10));
     equal(calls, 0);
@@ -401,6 +446,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         0
       )
     );
+
     equal(actual, receiver);
   });
   await test('zero and null repetition counts', () => {
@@ -410,6 +456,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   await test('unbounded repetition fails before callback execution', () => {
     let called = false,
       error;
+
     try {
       f.repeat(() => {
         called = true;
@@ -418,6 +465,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     } catch (value) {
       error = value;
     }
+
     equal(error instanceof RangeError, true);
     equal(called, false);
   });
@@ -427,15 +475,18 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         throw Error('must not coerce');
       }
     };
+
     throwsType(() => f.not(hostile));
     throwsType(() => f.and(hostile));
   });
   await test('cross-realm callbacks and argument arrays', () => {
     const frame = document.createElement('iframe');
+
     document.body.appendChild(frame);
     try {
       const fn = frame.contentWindow.Function('a', 'b', 'return a + b');
       const values = new frame.contentWindow.Array(2, 3);
+
       equal(f.spread(fn)(values), 5);
       equal(f.pipe(fn, (x) => x * 2)(2, 3), 10);
     } finally {
@@ -446,6 +497,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     function callback(value) {
       return value + 1;
     }
+
     callback.apply = null;
     callback.call = null;
     equal(f.pipe(callback, callback)(1), 3);
@@ -453,6 +505,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   });
   await test('promises remain synchronous values', async () => {
     const value = Promise.resolve(false);
+
     equal(f.pipe(() => value)(), value);
     equal(f.and(() => value)(), true);
     equal(f.not(() => value)(), false);
@@ -466,10 +519,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
 
   await test('async predicates await foreign promises and preserve document.all truthiness', async () => {
     const frame = document.createElement('iframe');
+
     document.body.appendChild(frame);
     try {
       for (const value of [false, true, document.all]) {
         const promise = frame.contentWindow.Promise.resolve(value);
+
         equal(await f.notAsync(() => promise)(), !value);
         equal(await f.andAsync(() => promise)(), !!value);
         equal(await f.orAsync(() => promise)(), !!value);
@@ -495,6 +550,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(optional, undefined);
           equal(arguments.length, 2);
           equal(this, receiver);
+
           return new Promise((resolve) => {
             release = resolve;
           });
@@ -506,6 +562,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(optional, undefined);
           equal(arguments.length, 2);
           equal(this, receiver);
+
           return !proceed;
         },
         () => {
@@ -513,6 +570,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         }
       );
       const pending = run.call(receiver, input, undefined);
+
       equal(pending instanceof Promise, true);
       equal(calls, 1);
       release(proceed);
@@ -520,6 +578,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       equal(calls, 2);
       equal(await f[name](null, undefined)(), false);
       const reason = {};
+
       await rejectsExact(
         f[name](
           () => Promise.reject(reason),
@@ -534,6 +593,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
 
   await test('async conditionals preserve browser inputs and await only the selected branch', async () => {
     const frame = document.createElement('iframe');
+
     document.body.appendChild(frame);
     try {
       const foreign = frame.contentWindow.Promise;
@@ -548,6 +608,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(second, undefined);
           equal(arguments.length, 2);
           calls++;
+
           return new foreign((resolve) => {
             release = resolve;
           });
@@ -561,10 +622,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(second, undefined);
           equal(arguments.length, 2);
           calls++;
+
           return foreign.resolve('false branch');
         }
       );
       const pending = choose.call(receiver, input, undefined);
+
       equal(calls, 1);
       release(false);
       equal(await pending, 'false branch');
@@ -574,12 +637,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(value, input);
           equal(this, receiver);
           equal(arguments.length, 1);
+
           return foreign.resolve(false);
         },
         () => {
           throw Error('Must skip transform');
         }
       );
+
       equal(await transform.call(receiver, input, 'ignored'), 3);
       equal(
         await f.whenAsync(
@@ -620,6 +685,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         )
       );
       const reason = {};
+
       await rejectsExact(
         f.whenAsync(
           () => foreign.reject(reason),
@@ -674,10 +740,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const runWorker = async function () {
       try {
         const api = self.Functions;
+
         for (const name of ['not', 'and', 'or', 'when', 'ifElse', 'nor', 'xor']) {
           if (Object.prototype.hasOwnProperty.call(api[name], 'async') || typeof api[name + 'Async'] !== 'function')
             throw Error('Worker standalone export: ' + name);
         }
+
         if (
           !(await api.notAsync(() => Promise.resolve(false))()) ||
           !(await api.andAsync(
@@ -691,6 +759,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         ) {
           throw Error('Async worker predicate');
         }
+
         if (
           (await api.whenAsync(
             async () => true,
@@ -709,21 +778,25 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         ) {
           throw Error('Async worker completion');
         }
+
         const output = api.pipe(null, (value) => value + 1)(2);
         const handle = api.delay((value) => self.postMessage({ value, kind: typeof handle }), 0, output);
       } catch (error) {
         self.postMessage({ error: error.message });
       }
     };
+
     const source = bundleSource + '\nself.onmessage = ' + runWorker.toString() + ';';
     const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
     const worker = new Worker(url);
+
     try {
       const result = await new Promise((resolve, reject) => {
         worker.onmessage = (event) => resolve(event.data);
         worker.onerror = (event) => reject(new Error(event.message));
         worker.postMessage(null);
       });
+
       equal(result.error, undefined);
       equal(result.value, 3);
       equal(result.kind, 'number');
@@ -738,41 +811,51 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         const token = {},
           args = Array.from({ length: count }, (_, i) => (i % 2 ? token : undefined));
         let calls = 0;
+
         function callback() {
           equal(this, callback);
           equal(arguments.length, count);
           for (let i = 0; i < count; i++) equal(arguments[i], args[i]);
           calls++;
+
           return token;
         }
+
         if (name === 'attempt') equal(f.attempt(callback, ...args), token);
         else {
           const result = f.repeat(callback, 3, ...args);
+
           equal(result.length, 3);
           for (const value of result) equal(value, token);
         }
+
         equal(calls, name === 'attempt' ? 1 : 3);
       });
     }
   }
+
   for (const count of [1, 2, 3, 4, 16, 64]) {
     await test(`pipeline invokes ${count} hostile-property callbacks without lookup`, () => {
       const callback = new Proxy(
         function (value) {
           equal(arguments.length, 1);
           equal(this, null);
+
           return value + 1;
         },
         {
           get(target, key, receiver) {
             if (key === 'call' || key === 'apply') throw Error('must not read ' + key);
+
             return Reflect.get(target, key, receiver);
           }
         }
       );
+
       equal(f.pipe(...Array(count).fill(callback)).call(null, 0), count);
     });
   }
+
   await test('attempt preserves reflected arity', () => equal(f.attempt.length, 2));
   await test('repeat preserves reflected arity', () => equal(f.repeat.length, 3));
   // document.all has the unusual [[IsHTMLDDA]] semantics: == null and typeof
@@ -781,6 +864,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     await test(`${name} rejects document.all rather than treating it as null`, () =>
       throwsType(() => f[name](document.all)));
   }
+
   await test('repeat rejects document.all as a count', () => throwsType(() => f.repeat(() => 1, document.all)));
   await test('spread treats document.all as an array-like collection', () =>
     equal(
@@ -791,6 +875,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     ));
   async function rejectsExact(promise, reason) {
     let rejected = false;
+
     await promise.then(
       () => {},
       (error) => {
@@ -800,15 +885,19 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     );
     equal(rejected, true);
   }
+
   async function rejectsType(promise) {
     let error;
+
     try {
       await promise;
     } catch (value) {
       error = value;
     }
+
     equal(error instanceof TypeError, true);
   }
+
   for (const [parent, property, name] of [
     ['when', 'async', 'whenAsync'],
     ['ifElse', 'async', 'ifElseAsync'],
@@ -828,6 +917,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       equal(typeof f[name], 'function');
     });
   }
+
   const resultValues = [
     undefined,
     null,
@@ -846,8 +936,10 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     [],
     new Error('value')
   ];
+
   for (let i = 0; i < resultValues.length; i++) {
     const value = resultValues[i];
+
     await test(`async predicates await truthiness ${i}`, async () => {
       equal(await f.norAsync(() => Promise.resolve(value))(), !value);
       equal(await f.xorAsync(() => Promise.resolve(value))(), !!value);
@@ -860,6 +952,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         failure = f.attemptResult(() => {
           throw value;
         });
+
       equal(success.ok, true);
       equal(success.value, value);
       equal('error' in success, false);
@@ -868,6 +961,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       equal('value' in failure, false);
       const asyncSuccess = await f.attemptResultAsync(() => Promise.resolve(value));
       const asyncFailure = await f.attemptResultAsync(() => Promise.reject(value));
+
       equal(asyncSuccess.ok, true);
       equal(asyncSuccess.value, value);
       equal(asyncFailure.ok, false);
@@ -877,8 +971,10 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       let calls = 0;
       const run = f.once(() => {
         calls++;
+
         return value;
       });
+
       equal(run(), value);
       equal(run(), value);
       equal(calls, 1);
@@ -887,22 +983,27 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         failures++;
         throw value;
       });
+
       for (let j = 0; j < 2; j++) {
         let caught = false;
+
         try {
           fail();
         } catch (error) {
           caught = true;
           equal(error, value);
         }
+
         equal(caught, true);
       }
+
       equal(failures, 1);
     });
     await test(`tap variants retain value ${i}`, async () => {
       equal(
         f.tap((input) => {
           equal(input, value);
+
           return 'ignored';
         })(value),
         value
@@ -910,6 +1011,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       equal(
         await f.tapAsync(async (input) => {
           equal(input, value);
+
           return 'ignored';
         })(value),
         value
@@ -918,11 +1020,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     await test(`sleep preserves abort reason ${i}`, async () => {
       const controller = new AbortController();
       const wait = f.sleep(200, { signal: controller.signal });
+
       controller.abort(value);
       await rejectsExact(wait, controller.signal.reason);
       await rejectsExact(f.sleep(0, { signal: controller.signal }), controller.signal.reason);
     });
   }
+
   await test('async pipeline ordering, variadic first stage and receivers', async () => {
     const context = {};
     const seen = [];
@@ -932,6 +1036,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         equal(this, context);
         equal(arguments.length, 2);
         seen.push(1);
+
         return Promise.resolve(a + b);
       },
       undefined,
@@ -939,9 +1044,11 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         equal(this, context);
         equal(arguments.length, 1);
         seen.push(2);
+
         return value * 2;
       }
     );
+
     equal(await run.call(context, 2, 3), 10);
     equal(seen.join(','), '1,2');
     equal(await f.pipeAsync()(42), undefined);
@@ -949,6 +1056,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   await test('async pipeline stops before later side effects on rejection', async () => {
     const error = {};
     let called = false;
+
     await rejectsExact(
       f.pipeAsync(
         () => Promise.reject(error),
@@ -973,8 +1081,10 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       )(token)
       .then((value) => {
         done = true;
+
         return value;
       });
+
     await Promise.resolve();
     equal(done, false);
     release();
@@ -984,16 +1094,19 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   await test('once promise identity and reentrancy', async () => {
     const promise = Promise.resolve(3);
     const get = f.once(() => promise);
+
     equal(get(), promise);
     equal(get(), promise);
     await promise;
     const recursive = f.once(() => recursive());
     let first;
+
     try {
       recursive();
     } catch (error) {
       first = error;
     }
+
     equal(first instanceof Error, true);
     try {
       recursive();
@@ -1004,10 +1117,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   await test('sleep window namespace, detached, bound and synthetic abort events', async () => {
     await f.sleep(0);
     const { sleep } = f;
+
     await sleep(0);
     await sleep.call({}, 0);
     const controller = new AbortController();
     const pending = f.sleep(200, { signal: controller.signal });
+
     controller.signal.dispatchEvent(new Event('abort'));
     controller.abort('real');
     await rejectsExact(pending, 'real');
@@ -1019,14 +1134,19 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       removes = 0;
     const add = signal.addEventListener,
       remove = signal.removeEventListener;
+
     signal.addEventListener = function () {
       adds++;
+
       return Reflect.apply(add, this, arguments);
     };
+
     signal.removeEventListener = function () {
       removes++;
+
       return Reflect.apply(remove, this, arguments);
     };
+
     await f.sleep(0, { signal });
     equal(adds, 1);
     equal(removes, 1);
@@ -1036,6 +1156,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   for (const name of ['pipeAsync', 'attemptResult', 'tap', 'tapAsync', 'once']) {
     await test(`${name} rejects document.all`, () => throwsType(() => f[name](document.all)));
   }
+
   await test('promise operations reject document.all as configuration', async () => {
     await rejectsType(f.attemptResultAsync(document.all));
     await rejectsType(f.sleep(document.all));
@@ -1044,18 +1165,22 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   });
   await test('new APIs accept callbacks, promises and signals from an iframe', async () => {
     const frame = document.createElement('iframe');
+
     document.body.appendChild(frame);
     try {
       const foreign = frame.contentWindow;
       const fn = foreign.eval('(function(n){return Promise.resolve(n+1);})');
+
       equal(await f.pipeAsync(fn, (n) => n * 2)(3), 8);
       equal((await f.attemptResultAsync(fn, 3)).value, 4);
       const callback = foreign.eval('(function(value){return value;})');
       const token = {};
+
       equal(f.once(callback)(token), token);
       equal(f.tap(callback)(token), token);
       const controller = new foreign.AbortController();
       const pending = f.sleep(200, { signal: controller.signal });
+
       controller.abort(token);
       await rejectsExact(pending, token);
     } finally {
@@ -1068,12 +1193,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       `\nself.onmessage=async function(){try{const f=Functions;const tap=f.tapAsync(async()=>{});const value=await f.pipeAsync(async(a,b)=>a+b,tap,x=>x*2)(2,3);const result=await f.attemptResultAsync(()=>Promise.resolve(value));await f.sleep(0);const once=f.once(()=>({}));const same=once()===once();const c=new AbortController();const pending=f.sleep(100,{signal:c.signal});c.abort('cancelled');let reason;try{await pending;}catch(error){reason=error;}self.postMessage({value:result.value,ok:result.ok,same,reason});}catch(error){self.postMessage({error:error.message});}};`;
     const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
     const worker = new Worker(url);
+
     try {
       const result = await new Promise((resolve, reject) => {
         worker.onmessage = (event) => resolve(event.data);
         worker.onerror = (event) => reject(new Error(event.message));
         worker.postMessage(null);
       });
+
       equal(result.error, undefined);
       equal(result.value, 10);
       equal(result.ok, true);
@@ -1091,6 +1218,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   for (const name of ['partial', 'partialRight', 'unary', 'when', 'ifElse', 'debounce', 'throttle']) {
     await test(`${name} rejects document.all as a callback`, () => throwsType(() => f[name](document.all)));
   }
+
   for (const name of ['debounce', 'throttle']) {
     await test(`${name} rejects document.all duration, options and flags`, () => {
       throwsType(() => f[name](() => 1, document.all));
@@ -1106,11 +1234,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             const fn = f[name](
               (value) => {
                 seen.push(value);
+
                 return value;
               },
               10,
               { leading, trailing }
             );
+
             fn(1);
             equal(fn.pending(), !leading && trailing);
             clock.tick(4);
@@ -1122,16 +1252,21 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             equal(clock.tasks.size, 0);
           }));
       }
+
     await test(`${name} clears handle zero and flushes latest receiver`, () =>
       goFnsTestClock((clock) => {
         let calls = 0;
         const token = {};
+
         function fn(value) {
           equal(this, token);
           calls++;
+
           return value;
         }
+
         const scheduled = f[name](fn, 10, { leading: false });
+
         scheduled.call(token, 1);
         equal(clock.tasks.has(0), true);
         scheduled.cancel();
@@ -1140,6 +1275,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         scheduled.call({}, 2);
         scheduled.call(token, 3);
         const { flush, pending } = scheduled;
+
         equal(flush(), 3);
         equal(pending(), false);
         equal(clock.tasks.size, 0);
@@ -1156,6 +1292,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           10,
           { leading: false }
         );
+
         fn(1);
         fn.flush();
         equal(fn.pending(), true);
@@ -1179,12 +1316,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           { leading: false }
         )
       };
+
       box.fn(token);
       equal(await finished, token);
       equal(box.fn.pending(), false);
       box.fn.cancel();
     });
   }
+
   for (const name of ['debounce', 'throttle']) {
     for (const clockCase of ['failure', 'expiry reentry', 'flush reentry']) {
       await test(`${name} browser clock ${clockCase}`, () =>
@@ -1195,15 +1334,18 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             cached = {},
             replacement = {},
             seen = [];
+
           Object.defineProperty(window, 'performance', {
             configurable: true,
             value: {
               now() {
                 if (hook) {
                   const run = hook;
+
                   hook = undefined;
                   run();
                 }
+
                 return clock.now();
               }
             }
@@ -1212,6 +1354,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             function (value) {
               equal(this, receiver);
               seen.push(value);
+
               return value;
             },
             10,
@@ -1225,13 +1368,16 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             scheduled.cancel();
             scheduled.call(receiver, replacement);
           };
+
           if (clockCase === 'failure') {
             let error;
+
             try {
               clock.tick(10);
             } catch (caught) {
               error = caught;
             }
+
             equal(error, reason);
           } else if (clockCase === 'flush reentry') equal(scheduled.flush(), cached);
           else clock.tick(10);
@@ -1243,6 +1389,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             equal(scheduled.flush(), cached);
             scheduled.call(receiver, replacement);
           }
+
           clock.tick(10);
           equal(seen.length, 2);
           equal(seen[1], replacement);
@@ -1251,10 +1398,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         }));
     }
   }
+
   await test('throttle trailing edge preserves the next spacing interval', () =>
     goFnsTestClock((clock) => {
       const seen = [];
       const fn = f.throttle((n) => seen.push([clock.now(), n]), 10);
+
       fn(1);
       clock.tick(1);
       fn(2);
@@ -1269,10 +1418,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     goFnsTestClock((clock) => {
       const seen = [];
       const fn = f.debounce((n) => seen.push([clock.now(), n]), 10, { maxWait: 25 });
+
       for (let i = 0; i < 7; i++) {
         fn(i);
         clock.tick(4);
       }
+
       equal(JSON.stringify(seen), '[[1025,6]]');
       clock.tick(20);
       equal(seen.length, 1);
@@ -1301,8 +1452,60 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const args = f.unary(function () {
       return Array.from(arguments);
     })();
+
     equal(args.length, 1);
     equal(args[0], undefined);
+  });
+  await test('ary and memoize preserve document.all as an argument', () => {
+    const collect = f.ary((...values) => values, 2);
+    const values = collect(document.all, undefined, 'extra');
+
+    equal(values.length, 2);
+    equal(values[0], document.all);
+    equal(values[1], undefined);
+    equal(collect().length, 0);
+
+    const read = f.memoize((value) => ({ value }));
+    const result = read(document.all);
+
+    equal(result.value, document.all);
+    equal(read(document.all), result);
+    equal(read(undefined) === result, false);
+    read.clear();
+    equal(read(document.all) === result, false);
+  });
+  await test('withDefaultArgs preserves document.all and positional call details', () => {
+    const receiver = {},
+      defaults = document.all;
+    let calls = 0;
+    const wrapped = f.withDefaultArgs(
+      function () {
+        calls++;
+        equal(this, receiver);
+
+        return Array.from(arguments);
+      },
+      defaults,
+      'info',
+      undefined
+    );
+
+    const omitted = wrapped.call(receiver);
+
+    equal(omitted.length, 3);
+    equal(omitted[0], defaults);
+    equal(omitted[1], 'info');
+    equal(omitted[2], undefined);
+    const supplied = wrapped.call(receiver, document.all, '', null, false);
+
+    equal(supplied.length, 4);
+    equal(supplied[0], document.all);
+    equal(supplied[1], '');
+    equal(supplied[2], null);
+    equal(supplied[3], false);
+    equal(f.withDefaultArgs((value) => value, 'fallback')(document.all), document.all);
+    equal(calls, 2);
+    throwsType(() => f.withDefaultArgs(document.all));
   });
   await test('repeatAsync rejection and sequential execution in browser', async () => {
     await rejectsType(f.repeatAsync(document.all));
@@ -1316,11 +1519,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       max = Math.max(max, active);
       await Promise.resolve();
       active--;
+
       return calls;
     }, 3);
+
     equal(result.join(','), '1,2,3');
     equal(max, 1);
     let count = 0;
+
     await rejectsExact(
       f.repeatAsync(() => {
         count++;
@@ -1332,19 +1538,24 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   });
   await test('2.2 callbacks and receivers from an iframe', async () => {
     const frame = document.createElement('iframe');
+
     document.body.appendChild(frame);
     try {
       const foreign = frame.contentWindow;
       const fn = foreign.eval('(function(a,b){return this.value+a+b;})');
       const receiver = { value: 2 };
+
       equal(f.partial(fn, 3).call(receiver, 4), 9);
       equal(f.partialRight(fn, 4).call(receiver, 3), 9);
+      equal(f.withDefaultArgs(fn, 3, 4).call(receiver, undefined), 9);
       const options = foreign.eval('({leading:false,trailing:true})');
       const scheduled = f.debounce(fn, 20, options);
+
       scheduled.call(receiver, 3, 4);
       equal(scheduled.flush(), 9);
       scheduled.cancel();
       const asyncFn = foreign.eval('(async function(n){return n+1;})');
+
       equal((await f.repeatAsync(asyncFn, 2, 1)).join(','), '2,2');
     } finally {
       frame.remove();
@@ -1353,20 +1564,23 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
   await test('all 2.2 helpers run in a Worker without a window', async () => {
     const source =
       bundleSource +
-      `\nself.onmessage=async function(){try{const f=Functions;const seen=[];const d=f.debounce(x=>seen.push(x),10);d(1);d(2);d.flush();d.cancel();const t=f.throttle(x=>x,10);const throttled=t(3);t.cancel();const fn=f.partialRight((a,b)=>a+b,2);const branch=f.ifElse(x=>x>0,f.unary(fn),()=>0);const n=f.when(x=>x<5,x=>x*2)(branch(1));const values=await f.repeatAsync(()=>n,2);self.postMessage({seen,throttled,values,partial:f.partial((a,b)=>a+b,1)(2)});}catch(error){self.postMessage({error:error.message});}};`;
+      `\nself.onmessage=async function(){try{const f=Functions;const seen=[];const d=f.debounce(x=>seen.push(x),10);d(1);d(2);d.flush();d.cancel();const t=f.throttle(x=>x,10);const throttled=t(3);t.cancel();const fn=f.partialRight((a,b)=>a+b,2);const branch=f.ifElse(x=>x>0,f.unary(fn),()=>0);const n=f.when(x=>x<5,x=>x*2)(branch(1));const values=await f.repeatAsync(()=>n,2);self.postMessage({seen,throttled,values,partial:f.partial((a,b)=>a+b,1)(2),defaulted:f.withDefaultArgs((a,b)=>a+b,1,2)()});}catch(error){self.postMessage({error:error.message});}};`;
     const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
     const worker = new Worker(url);
+
     try {
       const result = await new Promise((resolve, reject) => {
         worker.onmessage = (event) => resolve(event.data);
         worker.onerror = (event) => reject(new Error(event.message));
         worker.postMessage(null);
       });
+
       equal(result.error, undefined);
       equal(result.seen.join(','), '2');
       equal(result.throttled, 3);
       equal(result.values.join(','), '6,6');
       equal(result.partial, 3);
+      equal(result.defaulted, 3);
     } finally {
       worker.terminate();
       URL.revokeObjectURL(url);
@@ -1379,6 +1593,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         goFnsTestClock((clock) => {
           const seen = [];
           const fn = f[name]((x) => seen.push([clock.now(), x]), 100, { leading: true });
+
           fn(1);
           clock.tick(1);
           clock.wallJump(direction * 3600000);
@@ -1395,6 +1610,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(clock.tasks.size, 0);
         }));
     }
+
   for (const name of ['partial', 'partialRight']) {
     await test(`${name} optimized zero-input proxy path isolates arguments`, () => {
       const seen = [],
@@ -1404,12 +1620,15 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           apply(target, receiver, args) {
             seen.push(args);
             const first = args[0];
+
             args[0] = 'mutated';
+
             return first;
           }
         }),
         token
       );
+
       equal(fn(), token);
       equal(fn(), token);
       equal(seen[0] === seen[1], false);
@@ -1439,36 +1658,43 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
             equal(lists.includes(args), false);
             lists.push(args);
             args.length = 0;
+
             return token;
           }
         });
         const run = f[outer](f[inner](callback, ...first), ...second);
+
         equal(run.apply(receiver, input), token);
         equal(run.apply(receiver, input), token);
         equal(lists.length, 2);
       });
     }
   }
+
   await test('spread snapshots length and never requests an iterator', () => {
     const visits = [];
     const list = {
       get length() {
         visits.push('length');
+
         return 2;
       },
       get 0() {
         visits.push('0');
         Object.defineProperty(list, 'length', { value: 0 });
+
         return 4;
       },
       get 1() {
         visits.push('1');
+
         return 5;
       },
       get [Symbol.iterator]() {
         throw new Error('Unexpected iterator read');
       }
     };
+
     equal(
       f.pipe(
         f.spread((a, b) => a + b),
@@ -1496,17 +1722,20 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         function (value) {
           equal(value, input);
           equal(this, receiver);
+
           return condition;
         },
         function (value) {
           branches++;
           equal(this, receiver);
+
           return value;
         },
         () => {
           throw new Error('Unselected branch');
         }
       );
+
       equal(
         await f
           .pipeAsync(
@@ -1531,11 +1760,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         revoked.proxy,
         () => input
       )(input);
+
       revoked.revoke();
       release(false);
       equal(await pending, input);
     });
   }
+
   await test('tapAsync waits before adopting an input thenable', async () => {
     const visits = [];
     let release;
@@ -1545,14 +1776,17 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const input = {
       get then() {
         visits.push('then');
+
         return (resolve) => resolve(7);
       }
     };
     const result = f.tapAsync((value) => {
       equal(value, input);
       visits.push('observer');
+
       return gate;
     })(input);
+
     await Promise.resolve();
     equal(visits.join(','), 'observer');
     release();
@@ -1567,6 +1801,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       const result = {
         get then() {
           reads++;
+
           return (resolve, reject) => {
             calls++;
             resolve(document.all);
@@ -1575,6 +1810,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           };
         }
       };
+
       equal(f[name](() => result)(), name !== 'nor' && name !== 'not');
       equal(reads, 0);
       equal(await f[name + 'Async'](() => result)(), name === 'nor' || name === 'not');
@@ -1590,6 +1826,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           }
         }
       );
+
       await f[name + 'Async'](() => Promise.reject(failure))().then(
         () => {
           throw new Error('Expected rejection');
@@ -1598,6 +1835,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       );
     });
   }
+
   for (const name of ['and', 'or', 'nor', 'xor']) {
     await test(`${name}Async skips a revoked callback after an awaited decision`, async () => {
       let release, announce;
@@ -1615,11 +1853,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         ...prefix,
         () => {
           announce();
+
           return gate;
         },
         revoked.proxy
       );
       const pending = wrapper();
+
       await started;
       revoked.revoke();
       release(name !== 'and');
@@ -1633,20 +1873,24 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         (depth) => ({
           get then() {
             if (depth) nested.push(wrapper(depth - 1));
+
             return (resolve) => resolve(continuance);
           }
         }),
         (depth) => {
           visited.push(depth);
+
           return continuance;
         }
       );
       const expected = name === 'and' || name === 'nor';
+
       equal(await wrapper(2), expected);
       for (const pending of nested) equal(await pending, expected);
       equal(visited.sort().join(','), '0,1,2');
     });
   }
+
   // result identity, asynchronous repetition and cached state.
   for (const name of ['attemptResult', 'attemptResultAsync']) {
     await test(`${name} distinguishes returned document.all from thrown document.all`, async () => {
@@ -1654,12 +1898,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       const failure = await f[name](() => {
         throw document.all;
       });
+
       equal(success.ok, true);
       equal(success.value, document.all);
       equal(failure.ok, false);
       equal(failure.error, document.all);
     });
   }
+
   await test('attemptResultAsync captures a hostile thrown value without assimilation', async () => {
     const reason = new Proxy(
       {},
@@ -1672,6 +1918,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const result = await f.attemptResultAsync(() => {
       throw reason;
     });
+
     equal(result.ok, false);
     equal(result.error, reason);
   });
@@ -1691,6 +1938,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         started();
       }
     }));
+
     pending.then(() => {
       settled = true;
     });
@@ -1698,6 +1946,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     equal(settled, false);
     release(document.all);
     const result = await pending;
+
     equal(result.ok, true);
     equal(result.value, document.all);
   });
@@ -1706,10 +1955,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
     const value = {
       get then() {
         const n = ++reads;
+
         return (resolve) => resolve(n);
       }
     };
     const output = await f.repeatAsync(() => value, 3);
+
     equal(output.join(','), '1,2,3');
     equal(reads, 3);
   });
@@ -1725,6 +1976,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       });
       const callable = Proxy.revocable(() => {
         calls++;
+
         return gate;
       }, {});
       const check = f.repeatAsync(callable.proxy, 2).then(
@@ -1736,6 +1988,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           else equal(error instanceof TypeError, true);
         }
       );
+
       callable.revoke();
       if (outcome === 'resolve') release(1);
       else fail(reason);
@@ -1743,12 +1996,15 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       equal(calls, 1);
     });
   }
+
   await test('once caches document.all even though it is falsy and typeof undefined', () => {
     let calls = 0;
     const wrapper = f.once(() => {
       calls++;
+
       return document.all;
     });
+
     equal(wrapper(), document.all);
     equal(wrapper(), document.all);
     equal(calls, 1);
@@ -1759,11 +2015,14 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       calls++;
       throw document.all;
     });
+
     for (let i = 0; i < 2; i++) {
       const result = f.attemptResult(wrapper);
+
       equal(result.ok, false);
       equal(result.error, document.all);
     }
+
     equal(calls, 1);
   });
   await test('once retains an async rejection promise without retrying', async () => {
@@ -1774,6 +2033,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       throw reason;
     });
     const promise = wrapper();
+
     equal(wrapper(), promise);
     await promise.then(
       () => {
@@ -1791,13 +2051,16 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       get then() {
         reads++;
         equal(wrapper(), value);
+
         return (resolve) => resolve(7);
       }
     };
     const wrapper = f.once(() => {
       calls++;
+
       return value;
     });
+
     equal(wrapper(), value);
     equal(reads, 0);
     equal(await wrapper(), 7);
@@ -1812,10 +2075,12 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       () =>
         f.attemptResultAsync(() => {
           if (++calls === 2) throw reason;
+
           return calls;
         }),
       3
     );
+
     equal(results.length, 3);
     equal(results[0].value, 1);
     equal(results[1].ok, false);
@@ -1833,18 +2098,22 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         const live = new Set();
         let handle;
         let cleared = 0;
+
         window.setTimeout = function (callback, milliseconds) {
           if (phase === 'before') controller.abort(reason);
           handle = nativeSet.call(window, callback, milliseconds);
           live.add(handle);
           if (phase === 'after') controller.abort(reason);
+
           return handle;
         };
+
         window.clearTimeout = function (id) {
           live.delete(id);
           cleared++;
           nativeClear.call(window, id);
         };
+
         try {
           await f.sleep(60_000, { signal: controller.signal }).then(
             () => {
@@ -1862,6 +2131,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       });
     }
   }
+
   for (const name of ['debounce', 'throttle']) {
     for (const action of ['cancel', 'flush', 'replace']) {
       await test(`${name} ${action} during registration owns exactly one outcome`, () =>
@@ -1872,11 +2142,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           const scheduled = f[name](
             (value) => {
               seen.push(value);
+
               return value;
             },
             10,
             { leading: false }
           );
+
           window.setTimeout = (callback, duration) => {
             if (first) {
               first = false;
@@ -1886,8 +2158,10 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
                 if (action === 'replace') scheduled('replacement');
               }
             }
+
             return originalSet(callback, duration);
           };
+
           scheduled('first');
           equal(clock.tasks.size, action === 'replace' ? 1 : 0);
           clock.tick(10);
@@ -1896,22 +2170,28 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
           equal(clock.tasks.size, 0);
         }));
     }
+
     await test(`${name} cancellation in real native timer instrumentation`, () => {
       const nativeSet = window.setTimeout;
       const nativeClear = window.clearTimeout;
       const live = new Set();
       let called = 0;
       const scheduled = f[name](() => ++called, 60_000, { leading: true });
+
       window.setTimeout = function (callback, duration) {
         scheduled.cancel();
         const handle = nativeSet.call(window, callback, duration);
+
         live.add(handle);
+
         return handle;
       };
+
       window.clearTimeout = function (handle) {
         live.delete(handle);
         nativeClear.call(window, handle);
       };
+
       try {
         equal(scheduled(), undefined);
         equal(called, 0);
@@ -1927,8 +2207,10 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
       window.goFnsTestClock((clock) => {
         const seen = [];
         const scheduled = f[name]((value) => seen.push(value), 10, { leading: false });
+
         scheduled('old');
         const stale = [...clock.tasks.values()][0].fn;
+
         scheduled.cancel();
         scheduled('new');
         stale();
@@ -1938,6 +2220,7 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         equal(clock.tasks.size, 0);
       }));
   }
+
   for (const name of ['debounce', 'throttle']) {
     await test(`${name} leading-only suppressed calls preserve cooldown and cached result`, () =>
       window.goFnsTestClock((clock) => {
@@ -1948,11 +2231,13 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         const scheduled = f[name](
           function (value) {
             seen.push([this, value]);
+
             return result;
           },
           10,
           { leading: true, trailing: false }
         );
+
         equal(scheduled.call(firstThis, 'first'), result);
         clock.tick(1);
         equal(scheduled.call({}, { discarded: true }), result);
@@ -1977,18 +2262,22 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         const scheduled = f[name](
           function (value) {
             seen.push([this, value, arguments.length]);
+
             return value;
           },
           10,
           { leading: true, trailing: false }
         );
+
         window.setTimeout = (callback, duration) => {
           if (!reentered) {
             reentered = true;
             equal(scheduled.call(receiver, 'latest', undefined), undefined);
           }
+
           return register(callback, duration);
         };
+
         equal(scheduled('first'), 'latest');
         equal(seen.length, 1);
         equal(seen[0][0], receiver);
@@ -2000,5 +2289,6 @@ window.runGoFnsBrowserContracts = async function (bundleSource) {
         equal(clock.tasks.size, 0);
       }));
   }
+
   return { cases, assertions, status: 'passed' };
 };

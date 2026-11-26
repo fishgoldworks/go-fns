@@ -2,12 +2,32 @@
 
 This guide owns go-fns contributor, validation and release procedures, and records deliberate tooling choices.
 The [package manifest](package.json) owns command composition and pinned dependency versions;
-[`.nvmrc`](.nvmrc) owns the development runtime. Contributor tools require Node.js 22.16.0 or later, excluding Node.js 23.
+[`.nvmrc`](.nvmrc) owns the contributor runtime pin. Contributor tools require Node.js 22.16.0 or later, excluding Node.js 23.
 For consumer requirements, see [runtime support](README.md#runtime-support).
 
 ## Development and release checks
 
-Install dependencies with `npm ci`. Run `npm run verify` for the complete
+Install the pinned development dependencies with `npm ci`. Use the contributor
+Node version in [`.nvmrc`](.nvmrc) to match the CI candidate job.
+The supported Node.js 22.16.0 contributor floor has a separate CI job that reuses the same candidate and runs
+native coverage with the remaining non-browser verification checks.
+
+```sh
+npm ci
+npm run build
+npm test
+npm run test:types
+npm run test:docs
+```
+
+For [`withDefaultArgs`](docs/API.md#withdefaultargsfn-defaultargs), keep runtime
+regressions in `test/withDefaultArgs.test.js` and declaration checks in
+`test/types/withDefaultArgs.ts`. Changes must preserve strict `undefined`-only
+substitution, argument counts, exact receivers/results and safe optional/rest
+inputs. The installed browser contracts check real `document.all` against both
+bundles; the minimum-runtime consumer checks positional defaults on Node.js 8.0.0.
+
+Run `npm run verify` for the complete
 non-browser gate or `npm run verify:all` for release checks including Chromium, Firefox and WebKit.
 Supply the exact Node.js 8.0.0 executable through `GO_FNS_NODE8` or
 `--node8 /path/to/node-8.0.0`. The gate fails if it is unavailable; a later Node 8
@@ -15,7 +35,8 @@ patch cannot verify the declared minimum.
 The release orchestrator builds and packs once, records the candidate path and
 SHA-256 digest, then passes that same tarball to the consumer checks. Browser
 release checks use bundles from the installed candidate. CI carries those bytes
-between jobs rather than rebuilding a separate candidate in each job.
+between jobs. The installed-compiler job uses the same contributor pin alongside
+the consumer runtime and compiler matrices.
 
 ## Build and local use
 
@@ -26,6 +47,9 @@ Generation, bundling, minification and smoke checks finish in a staging director
 before the previous package is replaced. A failed preparation preserves the old
 package; replacement failures attempt rollback and report any retained backup.
 The ignored generated directory must not be edited by hand.
+
+For changes affecting 1.0.0 consumers, see the [migration notes](CHANGELOG.md#upgrading-from-100).
+The upgrade steps are short enough to keep with the 2.0.0 changelog entry.
 
 The development root is private. Generated consumer metadata has no development dependencies or repository lifecycle hooks; internal packing disables lifecycle scripts so verification cannot recurse. To try the generated package in another project:
 
@@ -52,6 +76,14 @@ the full verification gate; use `npm run verify:all` to prepare and verify a
 candidate for manual release review, supplying `--node8 /path/to/node-8.0.0`
 or setting `GO_FNS_NODE8`.
 
+Before replacing an existing candidate and checksum, packing validates the complete
+gzip stream, tar headers, entry bounds and end blocks. It also checks the package
+name/version and matches the file inventory against both npm's report and the
+build contract. Invalid staged output leaves the previous pair intact. These
+checks cover this library's generated regular-file tarballs, not arbitrary tar
+formats. Release regressions exercise corruption, replacement recovery and CLI
+diagnostics, including nested errors and recovery fields.
+
 Custom `--destination` paths must stay outside generated `package/`, including
 when a symbolic link or Windows junction points into it. Existing aliases are
 resolved before building; broken aliases are rejected. New directories beneath
@@ -60,6 +92,20 @@ also passes its selected tarball to the candidate-dependent tooling and release
 regressions. For standalone `test:tooling` or `test:release` runs against a custom
 candidate, set `GO_FNS_TEST_TARBALL` to that archive's path. Direct installed-package
 checks select the archive with `npm run test:package -- --tarball /path/to/candidate.tgz`.
+
+Use `--tarball` with `verify` or `verify:all` to repeat the gate on a retained candidate:
+
+```sh
+npm run verify -- --tarball artifacts/go-fns-2.0.0.tgz --node8 /path/to/node-8.0.0
+npm run verify:all -- --tarball artifacts/go-fns-2.0.0.tgz --node8 /path/to/node-8.0.0
+```
+
+Keep the retained archive outside `package/`. A supplied archive is checked before
+building, including its digest sidecar when present, and cannot be combined with
+`--destination`. The verifier builds the current checkout for comparison, installs
+the supplied archive and compares every installed file with that build. It checks
+the archive digest again at the end. A mismatched or changed archive fails the gate.
+Record the checkout revision and relevant working-tree changes alongside the digest.
 
 `npm run test:package` uses the recorded candidate by default. An explicit path
 selects exact existing bytes without rebuilding or repacking:
@@ -114,6 +160,25 @@ benchmark evidence and development dependencies stay in the repository.
 
 Run the focused checks listed in [package.json](package.json), including `test:docs`, `test:types`, `test:build`, `test:artifacts`, `coverage` and `coverage:native`.
 
+Package, declaration and documentation TypeScript consumer checks always attempt their owned temporary-directory cleanup.
+If a check fails and cleanup succeeds, the exact check error is rethrown. Cleanup failures
+produce an `AggregateError` containing the original thrown values in order, with the check
+failure first when present and the consumer recovery path in the message. CLI diagnostics
+include the nested errors. Tooling tests protect identity and complete cleanup attempts;
+release tests exercise primary-only, cleanup-only and combined failures through the real commands.
+
+### Test organisation
+
+- Ordinary runtime suites live at the top of `test/` and in `test/logic/`. Name dedicated tests after the exact source stem, such as `pipeAsync.test.js` for `src/pipeAsync.js`. Use descriptive names for suites spanning multiple functions. Separate adjacent test cases and suites with a blank line.
+- `test/build/`, `test/docs/`, `test/tooling/` and `test/package/` hold build recovery, documentation generation, tooling and release tests respectively. Their dedicated commands select them explicitly. `test/documentation.test.js` stays in ordinary discovery so the same executable examples run against source, bundles and the installed API.
+- `test/package/` also owns the installed consumer fixtures. `test:package -- --tarball <path> --node <executable>` runs the installed-runtime checks with the package inventory, imports and emitted declarations in one clean consumer. `test/browser/` and `test/types/` own the browser and compiler fixtures.
+
+### Behaviour and distribution checks
+
+Separate pending-state assertions, deferred release/rejection actions and later
+settled-state assertions with blank lines when reviewing asynchronous tests.
+Keep related declarations and assertions within the same phase compact.
+
 The source suite covers receiver and argument forwarding, callable proxies,
 nullish stages, synchronous versus async outcomes, cached results, predicate
 short-circuiting, timers, abort cleanup, scheduler reentrancy and monotonic clocks.
@@ -137,12 +202,19 @@ also compile and execute consumers, including default imports, named imports and
 public source subpaths. Compatibility checks run installed files on the actual
 declared minimum versions; modern source tooling does not substitute for them.
 
+The mixed `module: "preserve"`/Bundler fixtures run in both import orders on
+TypeScript 5.8.3 or later. Older supported compilers keep the CommonJS, browser,
+Node16/NodeNext and ESM-only Bundler checks and report the mixed-mode limitation. See
+the [TypeScript contracts](docs/API.md#typescript) for the supported configurations.
+
 Artefact checks run the behavioural suite through both bundles via CommonJS, with
 additional smoke checks for CommonJS, global, Worker-global, AMD and exports-only
 loaders. Build checks cover preparation failures, invalid output, replacement
-failure, rollback and cleanup errors. Source maps must contain mappings and embed
-the current readable bundle; a corrupted embedded source regression proves the
-check rejects drift.
+failure, rollback and cleanup errors. Both browser bundles link to adjacent source
+maps. Webpack maps the readable bundle to the packaged sources, and Terser composes
+that map through minification. Build and installed-package checks verify the map
+links and embedded sources. The build suite checks that locations in both bundles
+resolve to the original source and that corrupted source content is rejected.
 
 ## Native capability inventory and absence checks
 
@@ -155,13 +227,13 @@ These are required baseline features, not optional APIs hidden behind feature ch
 No collection, typed-array, `Symbol`, `BigInt`, DOM or internationalisation constructor
 is looked up by production code. Caller values remain opaque to these utilities.
 
-| Capability                                             | Runtime paths and absence behaviour                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Host aliases: `globalThis`, `self`, `global`, `window` | `util/getGlobal` selects lazily for `delay`, `sleep` and `util/createClock` → `util/createScheduler` → `debounce`/`throttle`. Each alias is optional; source needs one to resolve the host. Without any, requested host-dependent operations give an explicit error. Webpack may supply its own global resolver. Root/focused loading and unrelated functions do not need one. |
-| `performance` object; its `now` method                 | `util/createClock` separately guards both. Missing/nullish object or missing/non-callable method uses `Date.now`. A present callable retains its receiver and is captured once per scheduler. Getter/call errors are not hidden. The `Performance` constructor is unused.                                                                                                      |
-| `AbortController`, `AbortSignal`                       | Neither constructor, prototype nor static methods are accessed. `sleep` validates the supplied structural signal. Native constructors may be absent independently or together. Missing listener methods on that signal reject; pre-aborted signals preserve their reason without timers.                                                                                       |
-| Host `setTimeout`, `clearTimeout`                      | Required only for requested timer work/cleanup. `delay` forwards to `setTimeout`; `sleep` uses both; scheduler registration/cancellation uses both. Missing timers cannot break imports or unrelated functions. Host errors follow the existing throw/rejection contract.                                                                                                      |
-| Conditional transformations                            | No native conversions are required. `applyIf` and `when` use predicate truthiness and preserve skipped input identity. `whenAsync` awaits its decision and the selected result or original input.                                                                                                                                                                              |
+| Capability                                             | Runtime paths and absence behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Host aliases: `globalThis`, `self`, `global`, `window` | `util/getGlobal` selects lazily for [`delay`](docs/API.md#delayfn-milliseconds-args), [`sleep`](docs/API.md#sleepmilliseconds-options) and `util/createClock` → `util/createScheduler` → [`debounce`](docs/API.md#debouncefn-milliseconds-options)/[`throttle`](docs/API.md#throttlefn-milliseconds-options). Each alias is optional; source needs one to resolve the host. Without any, requested host-dependent operations give an explicit error. Webpack may supply its own global resolver. Root/focused loading and unrelated functions do not need one. |
+| `performance` object; its `now` method                 | `util/createClock` separately guards both. Missing/nullish object or missing/non-callable method uses `Date.now`. A present callable retains its receiver and is captured once per scheduler. Getter/call errors are not hidden. The `Performance` constructor is unused.                                                                                                                                                                                                                                                                                      |
+| `AbortController`, `AbortSignal`                       | Neither constructor, prototype nor static methods are accessed. [`sleep`](docs/API.md#sleepmilliseconds-options) validates the supplied structural signal. Native constructors may be absent independently or together. Missing listener methods on that signal reject; pre-aborted signals preserve their reason without timers.                                                                                                                                                                                                                              |
+| Host `setTimeout`, `clearTimeout`                      | Required only for requested timer work/cleanup. [`delay`](docs/API.md#delayfn-milliseconds-args) forwards to `setTimeout`; [`sleep`](docs/API.md#sleepmilliseconds-options) uses both; scheduler registration/cancellation uses both. Missing timers cannot break imports or unrelated functions. Host errors follow the existing throw/rejection contract.                                                                                                                                                                                                    |
+| Conditional transformations                            | No native conversions are required. [`applyIf`](docs/API.md#applyifvalue-condition-transform) and [`when`](docs/API.md#whenpredicate-transform) use predicate truthiness and preserve skipped input identity. [`whenAsync`](docs/API.md#whenasyncpredicate-transform) awaits its decision and the selected result or original input.                                                                                                                                                                                                                           |
 
 [`test/helpers/capabilities.js`](test/helpers/capabilities.js) evaluates fresh modules
 in a new realm after removing capabilities. It covers independent constructor/global
@@ -203,28 +275,34 @@ alignment. Keep explanatory and type comments separate from result annotations.
 
 The README coverage badge is executable source-line coverage from `npm run coverage`.
 The documentation badge is reference coverage for public functions
-and scheduler methods, including the returned schedulers' `cancel`, `flush` and `pending`.
+and scheduler methods, including the returned wrappers' controls to cancel, flush or check pending work.
 It does not claim exhaustive behaviour or example coverage. c8 also reports
 statements, branches and functions and enforces the configured per-file thresholds;
 native V8 coverage provides a second measurement of the same runtime suite.
 
 ## Tooling choices
 
+- `globals` uses the tested family pin for the Node and browser names consumed by
+  ESLint. Lint runs against the complete maintained scope. The candidate workflow
+  keeps the common v4 checkout/setup-node actions and v5 setup-python action pinned
+  to full commits, matching the other libraries using those action families.
 - Webpack remains the established UMD bundler; its Node API makes `webpack-cli`
   unnecessary. CommonJS, AMD, global, Worker and exports-only loaders are retained.
-  ES module usage relies on verified CommonJS interoperability; public `src/`
-  imports work with and without `.js` extensions.
+  `test:artifacts`, `test:package` and real-browser checks protect that output.
+  Root ES module usage relies on verified CommonJS interoperability; public `src/`
+  imports work with and without `.js` extensions and are checked by installed consumers.
 - Terser matches the reference library's minifier. Its configuration preserves
   public function names and arities, property access effects and strict `document.all` distinctions.
-- Node's built-in runner executes the existing TDD suite through a small adapter,
-  including per-test timeouts. The same runner owns source, artefact and installed
-  consumer checks, with no separate npm test-runner package. `coverage:native`
+- `scripts/test.js` starts Node's built-in runner with a separate deadline. The
+  `scripts/run-tests.js` adapter loads the suite serially for clock fixtures that
+  replace host globals. Source, artefact and installed checks reuse the same suite.
+  Runner regressions cover discovery, filters, cleanup and incomplete runs. `coverage:native`
   retains the alternative V8 measurements; `verify:native` retains the other
   release checks while selecting that measurement.
 - TypeScript checks declarations and parses documentation examples; production
   JavaScript is authored. Compiler fixtures stay separate from runtime discovery.
-- markdown-it retains optional HTML reference generation via `docs:html`.
-  The canonical README is generated from `scripts/README.template.md`.
+- markdown-it powers optional HTML reference generation via `docs:html`. The
+  renderer tests verify heading IDs, link navigation and code escaping.
 
 ## Browser tooling
 
@@ -261,10 +339,29 @@ requirements and retain TLS certificate verification.
 
 ## Benchmarks and historical evidence
 
+### Run and record benchmarks
+
 Workloads and fingerprinted baselines live in `benchmarks/`; command entry points
 live in `scripts/`. Run `npm run benchmark` or the specialised benchmark commands
 in `package.json`. Write new results to a task-owned temporary path. Timing
 assertions are intentionally absent from correctness gates.
+
+The Node and browser comparisons accept `--output <path>`. Adapter commands retain
+their positional output argument for compatibility: `npm run benchmark:adapters -- <path>`
+and `npm run benchmark:adapters:browser -- <path>`. Create the adapter report's
+parent directory first.
+
+New reports fingerprint the selected library files and the benchmark driver and
+workload before loading the measured code. The drivers check those inputs again
+before writing results; a changed final fingerprint fails and preserves a previous
+output file. Keep the input paths/hashes, runtime details, settings and raw timing
+samples with each report. These checks identify the captured files rather than
+providing a hermetic snapshot of arbitrary modules loaded by a custom entry.
+`test:tooling` covers the Node report boundary; `test:browser-driver` also checks
+both Python benchmark drivers with a fake host, without requiring Playwright or
+a browser. Real benchmark runs remain separate from correctness thresholds.
+
+### Retained measurements
 
 The retained [performance record](docs/performance.md) and historical samples explain
 earlier optimisation decisions. Their original 2.0.x/2.2.x labels identify
@@ -288,13 +385,33 @@ check that nested experiments remain untouched and do not execute or ship.
 
 The local [HTML renderer](scripts/docs-html.js) uses markdown-it directly. The [manifest](package.json) and [lockfile](package-lock.json) own that dependency; the former documentation.js/Vue compiler chain is no longer installed. Generate HTML only from maintained local Markdown and reassess the input boundary before accepting untrusted documentation.
 
-All verification modes, including `verify:native`, run lint and formatting checks before building and packing. Package archive inspection also requires the system `tar` command on `PATH`.
+All verification modes, including `verify:native`, run lint and formatting checks before building. Package archive inspection also requires the system `tar` command on `PATH`.
 
 ## Executable code quality
 
 Run `npm run lint` and `npm run format:check`; `npm run format` applies the owned formatter configuration. Verification and CI run the read-only checks before the release gate. The [development manifest](package.json) and [lockfile](package-lock.json) own the ESLint, TypeScript ESLint, globals and Prettier versions; [ESLint configuration](eslint.config.mjs) and [Prettier configuration](.prettierrc.json) own their rules. The pinned tools support the documented contributor runtime; they do not change consumer compatibility.
 
+The private [format runner](scripts/format.mjs) runs local Prettier first, applies only the two reviewed spacing fixes from [readability rules](scripts/readability.mjs) through the complete ESLint configuration, then checks Prettier again. Other errors and warnings remain visible and fail the command. Importing the runner does not start formatting; the CLI anchors itself to this checkout rather than the caller's working directory. The exact development pins are `@stylistic/eslint-plugin` 5.10.0 and `eslint-plugin-jsdoc` 63.3.3.
+
+The bounded spacing policy inserts a blank before JSDoc units, including single-line documentation, multiline tagged blocks and documentation following trailing comments. It separates declaration groups from operations, completed blocks from later statements and final returns. Related declarations, adjacent assertions and overload signatures remain compact; semantic grouping still needs review. It does not promise to remove existing gaps after JSDoc. The selected ESLint fixes preserve compiler and linter next-line targets; regression fixtures also protect coverage and preprocessor adjacency on Prettier-normalised input. The padding adapter moves only the whitespace gap before a trailing next-line directive chain so compiler and linter suppression targets remain intact. Newline-changing fixes inside `node:coverage`, `c8` or `v8` ignored line spans remain unfixed and reported for explicit author reconciliation; moving those lines can change the measured target. The guard protects only the selected ESLint fixes. Initial Prettier reflow can still change physical counted spans, so authors must reconcile counts and layout or use a suitable Prettier ignore, then rerun actual coverage. The CLI also resolves directory aliases and rejects unsupported arguments before writing. The canonical README checker retains its external bytes and correctness checks with only the new spacing rules disabled.
+
+`test:tooling` includes [readability regressions](test/tooling/readability.test.mjs) for effective parser scopes, directives, allowed fixes, diagnostics, exclusions and two-cycle formatting stability. The normal `verify` commands run this suite.
+
+Conditional returns use braced `if` blocks, with blank lines separating guards,
+setup, distinct operations and final returns. ESLint enforces the conditional-return
+rule across maintained JavaScript and TypeScript. Tooling regressions exercise
+unbraced failures and braced controls for runtime, test, script and compiler-fixture paths. The synchronised shared
+README checker follows its canonical owner's formatting and has a scoped exemption.
+
 The baseline checks maintained JavaScript, tooling and tests, with explicit module/host environments, and parses TypeScript declarations and consumer fixtures. Compiler checks remain responsible for declaration semantics. Intentional public `any` types, import-equals declarations, structural empty-object types and unused compiler-only bindings retain narrow TypeScript-scope exceptions: changing those contracts solely for lint would alter supported consumers or remove negative cases. JavaScript still checks undefined and unused bindings; caught error bindings remain allowed for old-runtime syntax compatibility. Review these scopes when the related contracts change.
+
+Lint exclusions cover generated output, build staging, local experiments and
+historical or archived material. Ordinary directory names such as `vendor/` have
+no blanket exemption. The [editor project](jsconfig.json) excludes generated
+packages, release and coverage output, build staging and local experiments from
+initial discovery. Maintained source, scripts and `test/package/` consumer fixtures
+stay included. Tooling tests exercise both inclusion and exclusion with ESLint
+and TypeScript's actual project parser.
 
 Prettier formats maintained JavaScript/TypeScript, configuration, Markdown and documentation templates. [Formatter exclusions](.prettierignore) cover generated distributions and documents, dependency/coverage output, locked or vendored data and historical evidence. Scoped `<!-- prettier-ignore -->` comments preserve aligned result examples; canonical documentation generation and executable-example checks still validate their results. Generated files must still pass their artefact freshness checks. No playbook modules or configuration dependency are imported.
 
@@ -321,7 +438,9 @@ not establish measurement. Empty or incomplete reports fail even with nominal
 experiments and distinguish uncovered branches from fully covered controls.
 
 c8 12 retains the same source inventory, per-file thresholds and reporting as the
-previous runner, while using maintained dependency APIs. The minimatch override
+previous runner. `coverage` enforces these per-file thresholds, while `coverage:native`
+checks the measured inventory and provides a separate V8 coverage report. Keep both
+until a coverage migration proves equivalent per-file enforcement. The minimatch override
 and test-exclude-scoped glob override resolve development advisories; the latter
 is scoped to its modern namespace consumer. Consumer Node requirements are
 unchanged; contributor tools remain supported on Node 22.16+.

@@ -112,35 +112,40 @@ type SelfReceiver<F extends AnyFunction> = [
 
 /**
  * The outcome of a callback. Check `ok` before reading `value` or `error`; a caught value need not be an `Error`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export type Result<T> = { ok: true; value: T } | { ok: false; error: unknown };
 
 /**
  * A structural cancellation signal accepted by `sleep`, including compatible browser, Node.js and cross-realm signals.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export interface AbortSignalLike {
   /** Whether cancellation has occurred. */
   readonly aborted: boolean;
+
   /** The exact cancellation reason; used as the rejection value. */
   readonly reason: unknown;
+
   /** Registers a listener for cancellation. */
   addEventListener(type: 'abort', listener: () => void): void;
+
   /** Removes a previously registered cancellation listener. */
   removeEventListener(type: 'abort', listener: () => void): void;
 }
+
 /**
  * Cancellation options for `sleep`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export interface SleepOptions {
   /** Signal that cancels the pending wait; already-aborted signals reject immediately. */
   signal?: AbortSignalLike | undefined;
 }
+
 /**
  * The host timer handle, or `unknown` when ambient timer declarations are absent.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export type TimerHandle = typeof globalThis extends { setTimeout: (...args: any[]) => infer Handle } ? Handle : unknown;
 
@@ -149,18 +154,20 @@ export type TimerHandle = typeof globalThis extends { setTimeout: (...args: any[
  * The stage receives the caller's arguments and receiver.
  * @param stages Nullish entries followed by the retained callback.
  * @returns A pipeline returning the retained stage's exact result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<F extends UncontextualizedCallback>(...stages: [...Nullish[], F]): Pipeline<[F], false>;
+
 /**
  * Creates a pipeline from one retained stage, skipping adjacent nullish entries.
  * The stage receives the caller's arguments and receiver.
  * @param stage Callback receiving the pipeline arguments.
  * @param skipped Trailing nullish entries, which are ignored.
  * @returns A pipeline returning the retained stage's exact result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<F extends UncontextualizedCallback>(stage: F, ...skipped: Nullish[]): Pipeline<[F], false>;
+
 /**
  * Creates a pipeline from one retained stage, skipping adjacent nullish entries.
  * The stage receives the caller's arguments and receiver.
@@ -168,15 +175,16 @@ export function pipe<F extends UncontextualizedCallback>(stage: F, ...skipped: N
  * @param stage Callback receiving the pipeline arguments.
  * @param trailing Trailing nullish entries, which are ignored.
  * @returns A pipeline returning the retained stage's exact result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<F extends UncontextualizedCallback>(
   skipped: Nullish,
   stage: F,
   ...trailing: Nullish[]
 ): Pipeline<[F], false>;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -186,11 +194,12 @@ export function pipe<F extends UncontextualizedCallback>(
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe(...stages: Nullish[]): (...args: unknown[]) => undefined;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -199,13 +208,14 @@ export function pipe(...stages: Nullish[]): (...args: unknown[]) => undefined;
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, R0>(
   f0: (this: T0, ...args: Args) => R0
 ): (this: T0, ...args: Args) => R0;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -215,14 +225,15 @@ export function pipe<Args extends unknown[], T0, R0>(
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, R0, R1>(
   f0: (this: T0, ...args: Args) => R0,
   f1: (this: T1, value: R0) => R1
 ): (this: KnownConstraint<T0> & KnownConstraint<T1>, ...args: Args) => R1;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -233,15 +244,16 @@ export function pipe<Args extends unknown[], T0, T1, R0, R1>(
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, T2, R0, R1, R2>(
   f0: (this: T0, ...args: Args) => R0,
   f1: (this: T1, value: R0) => R1,
   f2: (this: T2, value: R1) => R2
 ): (this: KnownConstraint<T0> & KnownConstraint<T1> & KnownConstraint<T2>, ...args: Args) => R2;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -253,7 +265,7 @@ export function pipe<Args extends unknown[], T0, T1, T2, R0, R1, R2>(
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, T2, T3, R0, R1, R2, R3>(
   f0: (this: T0, ...args: Args) => R0,
@@ -261,8 +273,9 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, R0, R1, R2, R3>(
   f2: (this: T2, value: R1) => R2,
   f3: (this: T3, value: R2) => R3
 ): (this: KnownConstraint<T0> & KnownConstraint<T1> & KnownConstraint<T2> & KnownConstraint<T3>, ...args: Args) => R3;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -275,7 +288,7 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, R0, R1, R2, R3>(
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, R0, R1, R2, R3, R4>(
   f0: (this: T0, ...args: Args) => R0,
@@ -287,8 +300,9 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, R0, R1, R2, R3,
   this: KnownConstraint<T0> & KnownConstraint<T1> & KnownConstraint<T2> & KnownConstraint<T3> & KnownConstraint<T4>,
   ...args: Args
 ) => R4;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -302,7 +316,7 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, R0, R1, R2, R3,
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, R0, R1, R2, R3, R4, R5>(
   f0: (this: T0, ...args: Args) => R0,
@@ -320,8 +334,9 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, R0, R1, R2,
     KnownConstraint<T5>,
   ...args: Args
 ) => R5;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -336,7 +351,7 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, R0, R1, R2,
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, R0, R1, R2, R3, R4, R5, R6>(
   f0: (this: T0, ...args: Args) => R0,
@@ -356,8 +371,9 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, R0, R1,
     KnownConstraint<T6>,
   ...args: Args
 ) => R6;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting.
@@ -373,7 +389,7 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, R0, R1,
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, T7, R0, R1, R2, R3, R4, R5, R6, R7>(
   f0: (this: T0, ...args: Args) => R0,
@@ -395,8 +411,9 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, T7, R0,
     KnownConstraint<T7>,
   ...args: Args
 ) => R7;
+
 /**
- * Creates a function that runs synchronous stages from left to right.
+ * Creates a reusable pipeline that passes each stage's result directly to the next.
  * The first stage receives all call arguments; each later stage receives the preceding
  * result. Stages share the caller's `this`. Nullish stages are skipped, and promises are
  * passed through without awaiting. For nullish gaps and longer tuples, annotate stage inputs;
@@ -407,7 +424,7 @@ export function pipe<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, T7, R0,
  * stages remain.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. Errors from
  * later stage calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipefns | Full API documentation}
  */
 export function pipe<const Stages extends readonly MaybeCallback[]>(
   ...stages: Stages & ValidPipeline<Stages, false>
@@ -419,9 +436,10 @@ export function pipe<const Stages extends readonly MaybeCallback[]>(
  * The returned promise adopts the stage result or failure.
  * @param stages Nullish entries followed by the retained callback.
  * @returns A pipeline resolving to the retained stage's awaited result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<F extends UncontextualizedCallback>(...stages: [...Nullish[], F]): Pipeline<[F], true>;
+
 /**
  * Creates a pipeline from one retained stage, skipping adjacent nullish entries.
  * The stage receives the caller's arguments and receiver.
@@ -429,9 +447,10 @@ export function pipeAsync<F extends UncontextualizedCallback>(...stages: [...Nul
  * @param stage Callback receiving the pipeline arguments.
  * @param skipped Trailing nullish entries, which are ignored.
  * @returns A pipeline resolving to the retained stage's awaited result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<F extends UncontextualizedCallback>(stage: F, ...skipped: Nullish[]): Pipeline<[F], true>;
+
 /**
  * Creates a pipeline from one retained stage, skipping adjacent nullish entries.
  * The stage receives the caller's arguments and receiver.
@@ -440,15 +459,16 @@ export function pipeAsync<F extends UncontextualizedCallback>(stage: F, ...skipp
  * @param stage Callback receiving the pipeline arguments.
  * @param trailing Trailing nullish entries, which are ignored.
  * @returns A pipeline resolving to the retained stage's awaited result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<F extends UncontextualizedCallback>(
   skipped: Nullish,
   stage: F,
   ...trailing: Nullish[]
 ): Pipeline<[F], true>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -458,11 +478,12 @@ export function pipeAsync<F extends UncontextualizedCallback>(
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync(...stages: Nullish[]): (...args: unknown[]) => Promise<undefined>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -471,13 +492,14 @@ export function pipeAsync(...stages: Nullish[]): (...args: unknown[]) => Promise
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, R0>(
   f0: (this: T0, ...args: Args) => R0
 ): (this: T0, ...args: Args) => Promise<Awaited<R0>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -487,14 +509,15 @@ export function pipeAsync<Args extends unknown[], T0, R0>(
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, R0, R1>(
   f0: (this: T0, ...args: Args) => R0,
   f1: (this: T1, value: Awaited<R0>) => R1
 ): (this: KnownConstraint<T0> & KnownConstraint<T1>, ...args: Args) => Promise<Awaited<R1>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -505,15 +528,16 @@ export function pipeAsync<Args extends unknown[], T0, T1, R0, R1>(
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, T2, R0, R1, R2>(
   f0: (this: T0, ...args: Args) => R0,
   f1: (this: T1, value: Awaited<R0>) => R1,
   f2: (this: T2, value: Awaited<R1>) => R2
 ): (this: KnownConstraint<T0> & KnownConstraint<T1> & KnownConstraint<T2>, ...args: Args) => Promise<Awaited<R2>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -525,7 +549,7 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, R0, R1, R2>(
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, R0, R1, R2, R3>(
   f0: (this: T0, ...args: Args) => R0,
@@ -536,8 +560,9 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, R0, R1, R2, R3
   this: KnownConstraint<T0> & KnownConstraint<T1> & KnownConstraint<T2> & KnownConstraint<T3>,
   ...args: Args
 ) => Promise<Awaited<R3>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -550,7 +575,7 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, R0, R1, R2, R3
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, R0, R1, R2, R3, R4>(
   f0: (this: T0, ...args: Args) => R0,
@@ -562,8 +587,9 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, R0, R1, R2
   this: KnownConstraint<T0> & KnownConstraint<T1> & KnownConstraint<T2> & KnownConstraint<T3> & KnownConstraint<T4>,
   ...args: Args
 ) => Promise<Awaited<R4>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -577,7 +603,7 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, R0, R1, R2
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, R0, R1, R2, R3, R4, R5>(
   f0: (this: T0, ...args: Args) => R0,
@@ -595,8 +621,9 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, R0, R1
     KnownConstraint<T5>,
   ...args: Args
 ) => Promise<Awaited<R5>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -611,7 +638,7 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, R0, R1
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, R0, R1, R2, R3, R4, R5, R6>(
   f0: (this: T0, ...args: Args) => R0,
@@ -631,8 +658,9 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, R0
     KnownConstraint<T6>,
   ...args: Args
 ) => Promise<Awaited<R6>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise.
@@ -648,7 +676,7 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, R0
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, T7, R0, R1, R2, R3, R4, R5, R6, R7>(
   f0: (this: T0, ...args: Args) => R0,
@@ -670,8 +698,9 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, T7
     KnownConstraint<T7>,
   ...args: Args
 ) => Promise<Awaited<R7>>;
+
 /**
- * Creates a function that runs stages from left to right, awaiting each result.
+ * Creates a reusable pipeline that awaits each stage's result before passing it onward.
  * The first stage receives all call arguments; each later stage receives one awaited result.
  * Stages share the caller's `this`. Nullish stages are skipped. Construction validates
  * immediately; calling the pipeline starts the first stage and returns a promise. For nullish
@@ -682,7 +711,7 @@ export function pipeAsync<Args extends unknown[], T0, T1, T2, T3, T4, T5, T6, T7
  * `undefined` when no stages remain. A throw or rejection stops later stages.
  * @throws {TypeError} If a stage is neither a function, `null` nor `undefined`. When called,
  * the pipeline rejects with the original stage failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#pipeasyncfns | Full API documentation}
  */
 export function pipeAsync<const Stages extends readonly MaybeCallback[]>(
   ...stages: Stages & ValidPipeline<Stages, true>
@@ -697,12 +726,13 @@ export function pipeAsync<const Stages extends readonly MaybeCallback[]>(
  * @param args Arguments passed to the callback.
  * @returns The callback result or exact thrown value, including `null` or `undefined`.
  * @throws {TypeError} If `fn` is not a function; validation happens outside the catch.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
  */
 export function attempt<Args extends unknown[], Value, F extends object>(
   fn: F & ContextualCallback<NoInfer<Args>, Value>,
   ...args: Args & NoInfer<ContextualArguments<F>> & DefaultableCall<F>
 ): unknown;
+
 /**
  * Invokes a callback synchronously and returns its result or the exact value it throws.
  * The callback itself is its receiver; bind it to supply another `this`. Returned and thrown
@@ -712,12 +742,13 @@ export function attempt<Args extends unknown[], Value, F extends object>(
  * @param args Arguments passed to the callback.
  * @returns The callback result or exact thrown value, including `null` or `undefined`.
  * @throws {TypeError} If `fn` is not a function; validation happens outside the catch.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
  */
 export function attempt<Args extends unknown[], Value>(
   fn: (this: void, ...args: NoInfer<Args>) => Value,
   ...args: Args
 ): unknown;
+
 /**
  * Invokes a callback synchronously and returns its result or the exact value it throws.
  * The callback itself is its receiver; bind it to supply another `this`. Returned and thrown
@@ -727,12 +758,13 @@ export function attempt<Args extends unknown[], Value>(
  * @param args Arguments passed to the callback.
  * @returns The callback result or exact thrown value, including `null` or `undefined`.
  * @throws {TypeError} If `fn` is not a function; validation happens outside the catch.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
  */
 export function attempt<F extends UncontextualizedCallback>(
   fn: F & SelfReceiver<F>,
   ...args: NoInfer<CapturedCall<F>['args']>
 ): unknown;
+
 /**
  * Invokes a callback synchronously and reports success or failure in a result object.
  * Check `ok` to distinguish a returned value from a thrown value. The callback itself is its
@@ -743,12 +775,13 @@ export function attempt<F extends UncontextualizedCallback>(
  * }` with the exact thrown value.
  * @throws {TypeError} If `fn` is not a function; invalid callbacks throw instead of producing
  * a failure result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
  */
 export function attemptResult<Args extends unknown[], Value, F extends object>(
   fn: F & ContextualCallback<NoInfer<Args>, Value>,
   ...args: Args & NoInfer<ContextualArguments<F>> & DefaultableCall<F>
 ): Result<Value>;
+
 /**
  * Invokes a callback synchronously and reports success or failure in a result object.
  * Check `ok` to distinguish a returned value from a thrown value. The callback itself is its
@@ -759,12 +792,13 @@ export function attemptResult<Args extends unknown[], Value, F extends object>(
  * }` with the exact thrown value.
  * @throws {TypeError} If `fn` is not a function; invalid callbacks throw instead of producing
  * a failure result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
  */
 export function attemptResult<Args extends unknown[], Value>(
   fn: (this: void, ...args: NoInfer<Args>) => Value,
   ...args: Args
 ): Result<Value>;
+
 /**
  * Invokes a callback synchronously and reports success or failure in a result object.
  * Check `ok` to distinguish a returned value from a thrown value. The callback itself is its
@@ -775,12 +809,13 @@ export function attemptResult<Args extends unknown[], Value>(
  * }` with the exact thrown value.
  * @throws {TypeError} If `fn` is not a function; invalid callbacks throw instead of producing
  * a failure result.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultfn-args | Full API documentation}
  */
 export function attemptResult<F extends UncontextualizedCallback>(
   fn: F & SelfReceiver<F>,
   ...args: NoInfer<CapturedCall<F>['args']>
 ): Result<ReturnType<F>>;
+
 /**
  * Invokes a callback, awaits its result and reports success or failure in a result object.
  * The callback itself is its receiver. Callback throws, promise rejections and failures while
@@ -791,12 +826,13 @@ export function attemptResult<F extends UncontextualizedCallback>(
  * @param args Arguments passed to the callback.
  * @returns A promise resolving to a fresh `{ ok: true, value }` object with
  * the awaited value, or `{ ok: false, error }` with the exact failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
  */
 export function attemptResultAsync<Args extends unknown[], Value, F extends object>(
   fn: F & ContextualCallback<NoInfer<Args>, Value>,
   ...args: Args & NoInfer<ContextualArguments<F>> & DefaultableCall<F>
 ): Promise<Result<Awaited<Value>>>;
+
 /**
  * Invokes a callback, awaits its result and reports success or failure in a result object.
  * The callback itself is its receiver. Callback throws, promise rejections and failures while
@@ -807,12 +843,13 @@ export function attemptResultAsync<Args extends unknown[], Value, F extends obje
  * @param args Arguments passed to the callback.
  * @returns A promise resolving to a fresh `{ ok: true, value }` object with
  * the awaited value, or `{ ok: false, error }` with the exact failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
  */
 export function attemptResultAsync<Args extends unknown[], Value>(
   fn: (this: void, ...args: NoInfer<Args>) => Value,
   ...args: Args
 ): Promise<Result<Awaited<Value>>>;
+
 /**
  * Invokes a callback, awaits its result and reports success or failure in a result object.
  * The callback itself is its receiver. Callback throws, promise rejections and failures while
@@ -823,7 +860,7 @@ export function attemptResultAsync<Args extends unknown[], Value>(
  * @param args Arguments passed to the callback.
  * @returns A promise resolving to a fresh `{ ok: true, value }` object with
  * the awaited value, or `{ ok: false, error }` with the exact failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
  */
 export function attemptResultAsync<F extends UncontextualizedCallback>(
   fn: F & SelfReceiver<F>,
@@ -832,7 +869,7 @@ export function attemptResultAsync<F extends UncontextualizedCallback>(
 
 /**
  * A function that observes one input and returns the exact input type and value.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export type Tap<This, Input> = undefined extends Input
   ? {
@@ -840,9 +877,10 @@ export type Tap<This, Input> = undefined extends Input
       <Value extends Input>(this: This, value: Value): Value;
     }
   : <Value extends Input>(this: This, value: Value) => Value;
+
 /**
  * An observer function whose promise resolves to the awaited input value after observation completes.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export type AsyncTap<This, Input> = undefined extends Input
   ? {
@@ -850,8 +888,9 @@ export type AsyncTap<This, Input> = undefined extends Input
       <Value extends Input>(this: This, value: Value): Promise<Awaited<Value>>;
     }
   : <Value extends Input>(this: This, value: Value) => Promise<Awaited<Value>>;
+
 /**
- * Creates a function that calls an observer with one value and returns that value unchanged.
+ * Creates a function that observes an intermediate value in a pipeline and passes the original input onward.
  * The observer receives the caller's `this`. Its return value is ignored without awaiting.
  * Object identity is preserved, and mutations made by the observer remain visible.
  * @param observer Observer receiving exactly one input value.
@@ -859,11 +898,12 @@ export type AsyncTap<This, Input> = undefined extends Input
  * observer returns.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#tapobserver | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#tapobserver | Full API documentation}
  */
 export function tap<This, Input>(observer: (this: This, value: Input) => unknown): Tap<This, Input>;
+
 /**
- * Creates a function that awaits an observer before returning its input value.
+ * Creates a function that awaits an observer before passing its input onward.
  * The observer receives exactly one input and the caller's `this`. A promise input reaches
  * the observer unchanged, but the returned promise resolves to its awaited value.
  * @param observer Synchronous or asynchronous observer receiving one input.
@@ -871,11 +911,12 @@ export function tap<This, Input>(observer: (this: This, value: Input) => unknown
  * promise inputs are unwrapped. Observer failures reject the wrapper promise.
  * @throws {TypeError} If `observer` is not a function. Later observer throws or rejections
  * reject the wrapper promise.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#tapasyncobserver | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#tapasyncobserver | Full API documentation}
  */
 export function tapAsync<This, Input>(observer: (this: This, value: Input) => unknown): AsyncTap<This, Input>;
+
 /**
- * Creates a promise that resolves after a cancellable pause.
+ * Creates a promise you can await to pause an asynchronous operation, with optional cancellation.
  * The host timer may run late. An already-aborted signal rejects without scheduling a timer.
  * Later cancellation clears the timer; listener cleanup runs on success, cancellation or
  * scheduling failure. A suppressed abort event is detected when the timer fires.
@@ -886,7 +927,7 @@ export function tapAsync<This, Input>(observer: (this: This, value: Input) => un
  * @param [options] Optional non-null, non-array options object.
  * @returns A promise resolving to `undefined` after the timer, or rejecting
  * with the exact `signal.reason` when aborted.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#sleepmilliseconds-options | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#sleepmilliseconds-options | Full API documentation}
  */
 export function sleep(milliseconds?: number, options?: SleepOptions): Promise<void>;
 // Capture a stable outcome type: generic relationships cannot be re-inferred per call
@@ -899,6 +940,7 @@ type CapturedCall<F> = Intersection<
       }
     : never
 > & { receiver: unknown; args: unknown[] };
+
 /**
  * Creates a function that invokes its callback at most once and caches the first outcome.
  * The first call supplies the arguments and `this`; later calls ignore their inputs. Exact
@@ -910,7 +952,7 @@ type CapturedCall<F> = Intersection<
  * @throws {TypeError} If `fn` is not a function.
  * @throws {Error} If the wrapper is called recursively before its first callback returns. An
  * uncaught recursive-call error becomes the cached failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#oncefn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#oncefn | Full API documentation}
  */
 export function once<F extends UncontextualizedCallback>(
   fn: F
@@ -930,13 +972,14 @@ export function once<F extends UncontextualizedCallback>(
  * @throws {TypeError} If `fn` is not a function or `count` is non-nullish and not a number.
  * @throws {RangeError} If `count` is not an integer in the supported range. Callback errors
  * stop further calls and propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
  */
 export function repeat<Args extends unknown[], Value, F extends object>(
   fn: F & ContextualCallback<NoInfer<Args>, Value>,
   count?: number | null,
   ...args: Args & NoInfer<ContextualArguments<F>> & DefaultableCall<F>
 ): Value[];
+
 /**
  * Invokes a callback a specified number of times synchronously and collects its results.
  * Each call receives the same arguments with the callback itself as its receiver; no index is
@@ -951,13 +994,14 @@ export function repeat<Args extends unknown[], Value, F extends object>(
  * @throws {TypeError} If `fn` is not a function or `count` is non-nullish and not a number.
  * @throws {RangeError} If `count` is not an integer in the supported range. Callback errors
  * stop further calls and propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
  */
 export function repeat<Args extends unknown[], Value>(
   fn: (this: void, ...args: NoInfer<Args>) => Value,
   count?: number | null,
   ...args: Args
 ): Value[];
+
 /**
  * Invokes a callback a specified number of times synchronously and collects its results.
  * Each call receives the same arguments with the callback itself as its receiver; no index is
@@ -972,15 +1016,16 @@ export function repeat<Args extends unknown[], Value>(
  * @throws {TypeError} If `fn` is not a function or `count` is non-nullish and not a number.
  * @throws {RangeError} If `count` is not an integer in the supported range. Callback errors
  * stop further calls and propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatfn-count-args | Full API documentation}
  */
 export function repeat<F extends UncontextualizedCallback>(
   fn: F & SelfReceiver<F>,
   count?: number | null,
   ...args: NoInfer<CapturedCall<F>['args']>
 ): ReturnType<F>[];
+
 /**
- * Schedules a callback through the host's `setTimeout` and returns its timer handle.
+ * Schedules a callback to run later and returns a timer handle you can use to cancel it.
  * Duration coercion, scheduling and the callback receiver follow the host timer. Use
  * `clearTimeout` to cancel the handle. Creating the timeout does not invoke the callback
  * synchronously.
@@ -992,15 +1037,16 @@ export function repeat<F extends UncontextualizedCallback>(
  * object.
  * @throws {TypeError} If `fn` is not a function. Scheduling errors propagate; later callback
  * errors are reported by the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
  */
 export function delay<Args extends unknown[], Value, F extends object>(
   fn: F & ContextualCallback<NoInfer<Args>, Value>,
   milliseconds?: number | null,
   ...args: Args & NoInfer<ContextualArguments<F>> & DefaultableCall<F>
 ): TimerHandle;
+
 /**
- * Schedules a callback through the host's `setTimeout` and returns its timer handle.
+ * Schedules a callback to run later and returns a timer handle you can use to cancel it.
  * Duration coercion, scheduling and the callback receiver follow the host timer. Use
  * `clearTimeout` to cancel the handle. Creating the timeout does not invoke the callback
  * synchronously.
@@ -1012,15 +1058,16 @@ export function delay<Args extends unknown[], Value, F extends object>(
  * object.
  * @throws {TypeError} If `fn` is not a function. Scheduling errors propagate; later callback
  * errors are reported by the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
  */
 export function delay<Args extends unknown[], Value>(
   fn: (this: void, ...args: NoInfer<Args>) => Value,
   milliseconds?: number | null,
   ...args: Args
 ): TimerHandle;
+
 /**
- * Schedules a callback through the host's `setTimeout` and returns its timer handle.
+ * Schedules a callback to run later and returns a timer handle you can use to cancel it.
  * Duration coercion, scheduling and the callback receiver follow the host timer. Use
  * `clearTimeout` to cancel the handle. Creating the timeout does not invoke the callback
  * synchronously.
@@ -1032,7 +1079,7 @@ export function delay<Args extends unknown[], Value>(
  * object.
  * @throws {TypeError} If `fn` is not a function. Scheduling errors propagate; later callback
  * errors are reported by the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#delayfn-milliseconds-args | Full API documentation}
  */
 export function delay<F extends UncontextualizedCallback>(
   fn: F,
@@ -1045,8 +1092,9 @@ export function delay<F extends UncontextualizedCallback>(
 type SpreadInput<Args extends unknown[]> =
   | Readonly<Args>
   | (number extends Args['length'] ? (Args[number][] extends Args ? ArrayLike<Args[number]> & object : never) : never);
+
 /**
- * Creates a function that passes an array-like input to its callback as individual arguments.
+ * Creates a wrapper that lets a callback take an array-like argument list in place of separate arguments.
  * The returned function forwards its caller's `this` to the callback and returns promises
  * unchanged. Arrays, typed arrays and array-like objects work; `null` or `undefined` supplies
  * no arguments. Iterability alone does not expand a collection.
@@ -1055,7 +1103,7 @@ type SpreadInput<Args extends unknown[]> =
  * list.
  * @throws {TypeError} If `fn` is not a function, or a later argument list is primitive and
  * non-nullish. Argument-list getter and callback errors propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#spreadfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#spreadfn | Full API documentation}
  */
 export function spread<This, Args extends unknown[], Value>(
   fn: (this: This, ...args: Args) => Value
@@ -1102,13 +1150,14 @@ type CombinedPredicate<S extends readonly MaybeFunction[], Async extends boolean
  * results are truthy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
  */
 export function and<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether all supplied predicates return truthy values.
  * Stops at the first falsy result. The returned predicate forwards all call arguments and the
@@ -1120,11 +1169,12 @@ export function and<
  * results are truthy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
  */
 export function and<This, Args extends unknown[]>(
   ...predicates: (((this: This, ...args: Args) => unknown) | Nullish)[]
 ): (this: This, ...args: Args) => boolean;
+
 /**
  * Creates a predicate that determines whether all supplied predicates return truthy values.
  * Stops at the first falsy result. The returned predicate forwards all call arguments and the
@@ -1136,9 +1186,10 @@ export function and<This, Args extends unknown[]>(
  * results are truthy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
  */
 export function and<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether any supplied predicate returns a truthy value.
  * Stops at the first truthy result. The returned predicate forwards all call arguments and
@@ -1150,13 +1201,14 @@ export function and<const S extends readonly MaybeCallback[]>(...predicates: S):
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
  */
 export function or<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether any supplied predicate returns a truthy value.
  * Stops at the first truthy result. The returned predicate forwards all call arguments and
@@ -1168,11 +1220,12 @@ export function or<
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
  */
 export function or<This, Args extends unknown[]>(
   ...predicates: (((this: This, ...args: Args) => unknown) | Nullish)[]
 ): (this: This, ...args: Args) => boolean;
+
 /**
  * Creates a predicate that determines whether any supplied predicate returns a truthy value.
  * Stops at the first truthy result. The returned predicate forwards all call arguments and
@@ -1184,9 +1237,10 @@ export function or<This, Args extends unknown[]>(
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orfns | Full API documentation}
  */
 export function or<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether exactly one supplied predicate returns a truthy
  * value.
@@ -1200,13 +1254,14 @@ export function or<const S extends readonly MaybeCallback[]>(...predicates: S): 
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
  */
 export function xor<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether exactly one supplied predicate returns a truthy
  * value.
@@ -1220,11 +1275,12 @@ export function xor<
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
  */
 export function xor<This, Args extends unknown[]>(
   ...predicates: (((this: This, ...args: Args) => unknown) | Nullish)[]
 ): (this: This, ...args: Args) => boolean;
+
 /**
  * Creates a predicate that determines whether exactly one supplied predicate returns a truthy
  * value.
@@ -1238,9 +1294,10 @@ export function xor<This, Args extends unknown[]>(
  * `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorfns | Full API documentation}
  */
 export function xor<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether all supplied predicates return falsy values.
  * Stops at the first truthy result. The returned predicate forwards all call arguments and
@@ -1252,13 +1309,14 @@ export function xor<const S extends readonly MaybeCallback[]>(...predicates: S):
  * results are falsy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
  */
 export function nor<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that determines whether all supplied predicates return falsy values.
  * Stops at the first truthy result. The returned predicate forwards all call arguments and
@@ -1270,11 +1328,12 @@ export function nor<
  * results are falsy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
  */
 export function nor<This, Args extends unknown[]>(
   ...predicates: (((this: This, ...args: Args) => unknown) | Nullish)[]
 ): (this: This, ...args: Args) => boolean;
+
 /**
  * Creates a predicate that determines whether all supplied predicates return falsy values.
  * Stops at the first truthy result. The returned predicate forwards all call arguments and
@@ -1286,9 +1345,10 @@ export function nor<This, Args extends unknown[]>(
  * results are falsy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norfns | Full API documentation}
  */
 export function nor<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S>;
+
 /**
  * Creates a predicate that negates its callback's truthiness.
  * Unlike the multi-predicate helpers, a missing or nullish callback is invalid. The returned
@@ -1299,7 +1359,7 @@ export function nor<const S extends readonly MaybeCallback[]>(...predicates: S):
  * `false`.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#notfn | Full API documentation}
  */
 export function not<This, Args extends unknown[]>(
   predicate: (this: This, ...args: Args) => unknown
@@ -1313,9 +1373,10 @@ export function not<This, Args extends unknown[]>(
  * @param predicate Required predicate returning a synchronous value, promise or thenable.
  * @returns A predicate resolving to `true` for a falsy awaited result, otherwise `false`.
  * @throws {TypeError} If the required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notasyncfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#notasyncfn | Full API documentation}
  */
 export function notAsync<F extends UncontextualizedCallback>(predicate: F): CombinedPredicate<[F], true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether all are truthy.
  * The returned predicate forwards all arguments and the caller's `this`. Nullish entries
@@ -1325,13 +1386,14 @@ export function notAsync<F extends UncontextualizedCallback>(predicate: F): Comb
  * @returns A predicate resolving to `true` if at least one predicate remains and all results
  * are truthy; otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
  */
 export function andAsync<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S, true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether all are truthy.
  * The returned predicate forwards all arguments and the caller's `this`. Nullish entries
@@ -1341,11 +1403,12 @@ export function andAsync<
  * @returns A predicate resolving to `true` if at least one predicate remains and all results
  * are truthy; otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
  */
 export function andAsync<This, Args extends unknown[]>(
   ...predicates: (((this: This, ...args: Args) => unknown) | Nullish)[]
 ): (this: This, ...args: Args) => Promise<boolean>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether all are truthy.
  * The returned predicate forwards all arguments and the caller's `this`. Nullish entries
@@ -1355,9 +1418,10 @@ export function andAsync<This, Args extends unknown[]>(
  * @returns A predicate resolving to `true` if at least one predicate remains and all results
  * are truthy; otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
  */
 export function andAsync<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S, true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether any is truthy.
  * The returned predicate forwards all arguments and the caller's `this`. Nullish entries
@@ -1367,13 +1431,14 @@ export function andAsync<const S extends readonly MaybeCallback[]>(...predicates
  * @returns A predicate resolving to `true` if any result is truthy, otherwise `false`.
  * No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
  */
 export function orAsync<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S, true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether any is truthy.
  * The returned predicate forwards all arguments and the caller's `this`. Nullish entries
@@ -1383,11 +1448,12 @@ export function orAsync<
  * @returns A predicate resolving to `true` if any result is truthy, otherwise `false`.
  * No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
  */
 export function orAsync<This, Args extends unknown[]>(
   ...predicates: (((this: This, ...args: Args) => unknown) | Nullish)[]
 ): (this: This, ...args: Args) => Promise<boolean>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether any is truthy.
  * The returned predicate forwards all arguments and the caller's `this`. Nullish entries
@@ -1397,11 +1463,12 @@ export function orAsync<This, Args extends unknown[]>(
  * @returns A predicate resolving to `true` if any result is truthy, otherwise `false`.
  * No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#orasyncfns | Full API documentation}
  */
 export function orAsync<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S, true>;
+
 /**
- * Creates a function that prepends saved arguments to each call without binding its receiver.
+ * Creates a specialised function with leading arguments supplied in advance, without binding its receiver.
  * The returned function forwards its caller's `this` to the callback and returns promises
  * unchanged. Saved values are retained by reference. There are no placeholders or constructor
  * adaptations.
@@ -1411,7 +1478,7 @@ export function orAsync<const S extends readonly MaybeCallback[]>(...predicates:
  * arguments.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#partialfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#partialfn-args | Full API documentation}
  */
 export function partial<This, Head extends unknown[], Tail extends unknown[], Value>(
   fn: (this: This, ...args: [...Head, ...Tail]) => Value,
@@ -1476,8 +1543,9 @@ type RightCall<F, B extends unknown[]> = Intersection<
       : never
     : never
 > & { receiver: unknown; args: unknown[] };
+
 /**
- * Creates a function that appends saved arguments to each call without binding its receiver.
+ * Creates a specialised function that appends saved arguments to each call without binding its receiver.
  * The returned function forwards its caller's `this` to the callback and returns promises
  * unchanged. Saved values are retained by reference. Omitted inputs are not padded; supply
  * optional prefix positions explicitly when needed to keep saved arguments in place.
@@ -1487,14 +1555,93 @@ type RightCall<F, B extends unknown[]> = Intersection<
  * arguments.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#partialrightfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#partialrightfn-args | Full API documentation}
  */
 export function partialRight<F extends UncontextualizedCallback, Bound extends unknown[]>(
   fn: F,
   ...args: Bound & ValidRight<F, Bound>
 ): (this: RightCall<F, Bound>['receiver'], ...args: RightCall<F, Bound>['args']) => ReturnType<F>;
+
+// Default substitution materialises every stored position, including positions in
+// an originally empty rest list. Optionality is safe only for a trailing suffix.
+type DefaultArgsTail<Args extends unknown[]> = Args extends [unknown?, ...infer Tail] ? Tail : Args;
+type DefaultArgsOptional<Args extends unknown[]> = '0' extends keyof Args
+  ? {} extends Pick<Args, '0'>
+    ? true
+    : false
+  : undefined extends Args[0]
+    ? true
+    : false;
+type DefaultArgsPrepend<Value, Tail extends unknown[], Optional extends boolean> = Optional extends true
+  ? [] extends Tail
+    ? [value?: Value, ...Tail]
+    : [value: Value, ...Tail]
+  : [value: Value, ...Tail];
+type DefaultArgsInputs<Args extends unknown[], Defaults extends readonly unknown[]> = Defaults extends readonly [
+  infer Value,
+  ...infer Rest
+]
+  ? DefaultArgsPrepend<
+      undefined extends Value ? Args[0] : Args[0] | undefined,
+      DefaultArgsInputs<DefaultArgsTail<Args>, Rest>,
+      undefined extends Value ? DefaultArgsOptional<Args> : true
+    >
+  : Args;
+type DefaultArgsValuesFit<Args extends unknown[], Defaults extends readonly unknown[]> = Defaults extends readonly [
+  infer Value,
+  ...infer Rest
+]
+  ? Args extends []
+    ? false
+    : [Exclude<Value, undefined>] extends [Args[0]]
+      ? DefaultArgsValuesFit<DefaultArgsTail<Args>, Rest>
+      : false
+  : true;
+type DefaultArgsSupported<Args extends unknown[]> = '0' extends keyof Args
+  ? DefaultArgsSupported<DefaultArgsTail<Args>>
+  : number extends Args['length']
+    ? Args[number][] extends Args
+      ? true
+      : false
+    : true;
+// Reject ambiguous alternatives rather than combine positions from different
+// callbacks/default tuples. Defaults never participate in callback inference.
+type ValidDefaultArgs<F extends AnyFunction, Defaults extends readonly unknown[]> = true extends
+  IsUnion<F> | IsUnion<Parameters<F>> | IsUnion<Defaults>
+  ? never
+  : DefaultArgsSupported<Parameters<F>> extends false
+    ? never
+    : number extends Defaults['length']
+      ? never
+      : Defaults extends Required<Defaults>
+        ? DefaultArgsValuesFit<Parameters<F>, Defaults> extends true
+          ? unknown
+          : never
+        : never;
+type DefaultArgsFunction<F extends AnyFunction, Defaults extends readonly unknown[]> = (
+  this: ThisParameterType<F>,
+  ...args: DefaultArgsInputs<Parameters<F>, Defaults>
+) => ReturnType<F>;
+
 /**
- * Creates a function that forwards exactly one argument to its callback.
+ * Creates a wrapper that supplies positional defaults when arguments are omitted or undefined.
+ * Defaults are captured by reference; defined arguments, call-time receivers and callback
+ * results are preserved. Required positions without a defined fallback remain required.
+ * @param fn Required callback, using one captured call signature.
+ * @param defaultArgs A finite tuple of positional fallback values; undefined can leave a position required.
+ * @returns A fresh callable with resolved argument inputs and the captured callback result type.
+ * Generic relationships, type predicates, assertion signatures and construct signatures are not preserved.
+ * @throws {TypeError} If the callback is not a function. Callback errors propagate unchanged.
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#withdefaultargsfn-defaultargs | Full API documentation}
+ */
+export function withDefaultArgs<F, const Defaults extends readonly unknown[]>(
+  fn: F & NoInfer<[F] extends [AnyFunction] ? unknown : never>,
+  ...defaultArgs: Defaults & NoInfer<ValidDefaultArgs<Extract<F, AnyFunction>, Defaults>>
+): DefaultArgsFunction<Extract<F, AnyFunction>, Defaults>;
+
+/**
+ * Creates a wrapper that forwards exactly one argument, so extra arguments from callers such as `map` stay
+ * out of the callback.
  * The returned function forwards its caller's `this` to the callback and returns promises
  * unchanged. An omitted input becomes one explicit `undefined`; additional arguments are
  * ignored.
@@ -1503,14 +1650,61 @@ export function partialRight<F extends UncontextualizedCallback, Bound extends u
  * argument.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#unaryfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#unaryfn | Full API documentation}
  */
 export function unary<This, Input, Value>(
   fn: (this: This, value: Input) => Value
 ): (this: This, ...args: undefined extends Input ? [value?: Input] : [value: Input]) => Value;
+
+type AryAcceptsCount<
+  Args extends unknown[],
+  Count extends number,
+  Prefix extends unknown[] = []
+> = Args extends unknown[]
+  ? Count extends number
+    ? [] extends Args
+      ? true
+      : number extends Count
+        ? false
+        : Prefix['length'] extends Count
+          ? false
+          : Args extends [unknown, ...infer Tail]
+            ? AryAcceptsCount<Tail, Count, [...Prefix, unknown]>
+            : false
+    : never
+  : never;
+
 /**
- * Creates a function that transforms one value when a predicate is truthy and otherwise
- * returns it unchanged.
+ * Caps the arguments forwarded to a callback, preserving the caller's receiver and exact result.
+ * A numeric literal cap must leave room for every required parameter. A dynamic cap is accepted
+ * when the callback can take zero arguments. The wrapper retains the callback's parameter types.
+ * @param fn Required callback.
+ * @param count Maximum number of forwarded arguments, from 0 through 4294967295.
+ * @returns A wrapper forwarding at most the given count, without padding omitted inputs.
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#aryfn-count | Full API documentation}
+ */
+export function ary<This, Args extends unknown[], Value, const Count extends number>(
+  fn: (this: This, ...args: Args) => Value,
+  count: Count & NoInfer<false extends AryAcceptsCount<Args, Count> ? never : unknown>
+): (this: This, ...args: Args) => Value;
+
+/**
+ * Reuses a result for matching receivers and complete argument lists.
+ * The cache is bounded and evicts the least recently used entry. Returned promises keep their
+ * identity. Synchronous throws propagate without being cached.
+ * @param fn Required callback.
+ * @param options An optional maximum number of entries. Defaults to 128.
+ * @returns A callable with the original parameter and result types and a `clear()` method.
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#memoizefn-options | Full API documentation}
+ */
+export function memoize<This, Args extends unknown[], Value>(
+  fn: (this: This, ...args: Args) => Value,
+  options?: { maxSize?: number | undefined }
+): ((this: This, ...args: Args) => Value) & { clear(): undefined };
+
+/**
+ * Creates a reusable function that transforms an input when a predicate passes and otherwise passes
+ * the input through.
  * When called, the wrapper evaluates the predicate once. Both callbacks receive exactly one
  * input and the caller's `this`. Predicate promises are truthy without awaiting; a transform
  * result or promise is returned unchanged.
@@ -1521,15 +1715,16 @@ export function unary<This, Input, Value>(
  * otherwise the exact input value or object reference.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenpredicate-transform | Full API documentation}
  */
 export function when<P, T, Input, Narrow extends Input, Output>(
   predicate: (this: P, value: Input) => value is Narrow,
   transform: (this: T, value: Narrow) => Output
 ): (this: KnownConstraint<P> & KnownConstraint<T>, value: Input) => Input | Output;
+
 /**
- * Creates a function that transforms one value when a predicate is truthy and otherwise
- * returns it unchanged.
+ * Creates a reusable function that transforms an input when a predicate passes and otherwise passes
+ * the input through.
  * When called, the wrapper evaluates the predicate once. Both callbacks receive exactly one
  * input and the caller's `this`. Predicate promises are truthy without awaiting; a transform
  * result or promise is returned unchanged.
@@ -1540,14 +1735,15 @@ export function when<P, T, Input, Narrow extends Input, Output>(
  * otherwise the exact input value or object reference.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenpredicate-transform | Full API documentation}
  */
 export function when<P, T, Input, Output>(
   predicate: (this: P, value: Input) => unknown,
   transform: (this: T, value: Input) => Output
 ): (this: KnownConstraint<P> & KnownConstraint<T>, value: Input) => Input | Output;
+
 /**
- * Creates a function that evaluates a predicate once and calls the matching branch.
+ * Creates a reusable function that chooses between two callbacks based on a predicate result.
  * All call arguments and the caller's `this` reach the predicate and selected branch. The
  * other branch is not called. Predicate promises are truthy without awaiting; the selected
  * branch result is returned unchanged.
@@ -1559,15 +1755,16 @@ export function when<P, T, Input, Output>(
  * or the `onFalse` result otherwise.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElse<Input, Narrow extends Input, P, T, F, Yes, No>(
   predicate: (this: P, value: Input) => value is Narrow,
   onTrue: (this: T, value: NoInfer<Narrow>) => Yes,
   onFalse: (this: F, value: Exclude<NoInfer<Input>, Narrow>) => No
 ): (this: KnownConstraint<P> & KnownConstraint<T> & KnownConstraint<F>, value: Input) => Yes | No;
+
 /**
- * Creates a function that evaluates a predicate once and calls the matching branch.
+ * Creates a reusable function that chooses between two callbacks based on a predicate result.
  * All call arguments and the caller's `this` reach the predicate and selected branch. The
  * other branch is not called. Predicate promises are truthy without awaiting; the selected
  * branch result is returned unchanged.
@@ -1579,15 +1776,16 @@ export function ifElse<Input, Narrow extends Input, P, T, F, Yes, No>(
  * or the `onFalse` result otherwise.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElse<Args extends unknown[], P, T, F, Yes, No>(
   predicate: (this: P, ...args: Args) => unknown,
   onTrue: (this: T, ...args: Args) => Yes,
   onFalse: (this: F, ...args: Args) => No
 ): (this: KnownConstraint<P> & KnownConstraint<T> & KnownConstraint<F>, ...args: Args) => Yes | No;
+
 /**
- * Creates a function that evaluates a predicate once and calls the matching branch.
+ * Creates a reusable function that chooses between two callbacks based on a predicate result.
  * All call arguments and the caller's `this` reach the predicate and selected branch. The
  * other branch is not called. Predicate promises are truthy without awaiting; the selected
  * branch result is returned unchanged. This overload supports callbacks that ignore some
@@ -1600,15 +1798,16 @@ export function ifElse<Args extends unknown[], P, T, F, Yes, No>(
  * or the `onFalse` result otherwise.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElse<Args extends unknown[], P, T, F, Yes, No>(
   predicate: (this: P, ...args: NoInfer<Args>) => unknown,
   onTrue: (this: T, ...args: Args) => Yes,
   onFalse: (this: F, ...args: NoInfer<Args>) => No
 ): (this: KnownConstraint<P> & KnownConstraint<T> & KnownConstraint<F>, ...args: Args) => Yes | No;
+
 /**
- * Creates a function that evaluates a predicate once and calls the matching branch.
+ * Creates a reusable function that chooses between two callbacks based on a predicate result.
  * All call arguments and the caller's `this` reach the predicate and selected branch. The
  * other branch is not called. Predicate promises are truthy without awaiting; the selected
  * branch result is returned unchanged.
@@ -1620,13 +1819,14 @@ export function ifElse<Args extends unknown[], P, T, F, Yes, No>(
  * or the `onFalse` result otherwise.
  * @throws {TypeError} If a required callback is not a function. Errors from later callback
  * calls propagate unchanged.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelsepredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElse<Args extends unknown[], P, T, F, Yes, No>(
   predicate: (this: P, ...args: NoInfer<Args>) => unknown,
   onTrue: (this: T, ...args: NoInfer<Args>) => Yes,
   onFalse: (this: F, ...args: Args) => No
 ): (this: KnownConstraint<P> & KnownConstraint<T> & KnownConstraint<F>, ...args: Args) => Yes | No;
+
 /**
  * Invokes a callback a specified number of times sequentially, awaiting each result.
  * Each call receives the same arguments with the callback itself as its receiver; no index is
@@ -1640,13 +1840,14 @@ export function ifElse<Args extends unknown[], P, T, F, Yes, No>(
  * @param args Arguments passed to the callback.
  * @returns A promise resolving to a fresh array of awaited results in
  * invocation order; an empty array for a zero or nullish count.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
  */
 export function repeatAsync<Args extends unknown[], Value, F extends object>(
   fn: F & ContextualCallback<NoInfer<Args>, Value>,
   count?: number | null,
   ...args: Args & NoInfer<ContextualArguments<F>> & DefaultableCall<F>
 ): Promise<Awaited<Value>[]>;
+
 /**
  * Invokes a callback a specified number of times sequentially, awaiting each result.
  * Each call receives the same arguments with the callback itself as its receiver; no index is
@@ -1660,13 +1861,14 @@ export function repeatAsync<Args extends unknown[], Value, F extends object>(
  * @param args Arguments passed to the callback.
  * @returns A promise resolving to a fresh array of awaited results in
  * invocation order; an empty array for a zero or nullish count.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
  */
 export function repeatAsync<Args extends unknown[], Value>(
   fn: (this: void, ...args: NoInfer<Args>) => Value,
   count?: number | null,
   ...args: Args
 ): Promise<Awaited<Value>[]>;
+
 /**
  * Invokes a callback a specified number of times sequentially, awaiting each result.
  * Each call receives the same arguments with the callback itself as its receiver; no index is
@@ -1680,62 +1882,70 @@ export function repeatAsync<Args extends unknown[], Value>(
  * @param args Arguments passed to the callback.
  * @returns A promise resolving to a fresh array of awaited results in
  * invocation order; an empty array for a zero or nullish count.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#repeatasyncfn-count-args | Full API documentation}
  */
 export function repeatAsync<F extends UncontextualizedCallback>(
   fn: F & SelfReceiver<F>,
   count?: number | null,
   ...args: NoInfer<CapturedCall<F>['args']>
 ): Promise<Awaited<ReturnType<F>>[]>;
+
 /**
  * Controls whether a throttled callback runs at the start and end of an interval. Both edges default to `true`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export interface ThrottleOptions {
   /** Whether to invoke on the leading edge. Defaults to `true` for throttle and `false` for debounce. */
   leading?: boolean | undefined;
+
   /** Whether to invoke pending work on the trailing edge. Defaults to `true`. */
   trailing?: boolean | undefined;
 }
+
 /**
  * Controls leading and trailing calls and maximum postponement. Leading defaults to `false`; trailing defaults to `true`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export interface DebounceOptions extends ThrottleOptions {
   /** Optional maximum postponement in milliseconds, from the ordinary wait through 2147483647. */
   maxWait?: number | undefined;
 }
+
 /**
  * A callback wrapper with methods for cancelling, flushing and inspecting scheduled work. Calls return the most recent callback return value, including a pending promise, or `undefined` until the first successful return.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#typescript | TypeScript contracts}
  */
 export interface ScheduledFunction<This, Args extends unknown[], Value> {
   /** Invokes or schedules the callback using the supplied arguments and receiver; returns the most recent callback return value, including a pending promise, or `undefined` until the first successful return. */
   (this: This, ...args: Args): Value | undefined;
+
   /**
    * Discards pending calls and resets scheduling, retaining the most recent callback return value.
    * @returns `undefined` after discarding scheduled work. Work already started continues.
    * Host timer errors propagate.
-   * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncecancel | Full API documentation}
+   * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncedfncancel | Full API documentation}
    */
   cancel(): void;
+
   /**
    * Invokes eligible pending work immediately, or returns the most recent callback return value.
    * @returns The callback return value when pending work runs, including a pending promise, or the previous value otherwise; `undefined` until the first successful return.
    * Callback, clock and host timer errors propagate. Returned promises are not awaited or caught.
-   * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debounceflush | Full API documentation}
+   * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncedfnflush | Full API documentation}
    */
   flush(): Value | undefined;
+
   /**
    * Checks whether a callback invocation is scheduled.
    * @returns `true` if a callback invocation is scheduled; otherwise `false`. A leading-only cooldown or an in-flight promise alone returns `false`.
-   * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncepending | Full API documentation}
+   * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncedfnpending | Full API documentation}
    */
   pending(): boolean;
 }
+
 /**
- * Creates a function that combines a burst of calls using the latest arguments and receiver.
- * Defaults to trailing execution after calls stop. Optional `maxWait` limits postponement
+ * Creates a function that combines a burst of calls, waiting for a pause by default.
+ * It uses the latest arguments and receiver. Optional `maxWait` limits postponement
  * while calls continue, subject to host timer scheduling. Construction does not invoke the
  * callback. `cancel()`, `flush()` and `pending()` manage scheduled calls; started
  * asynchronous work continues.
@@ -1748,15 +1958,16 @@ export interface ScheduledFunction<This, Args extends unknown[], Value> {
  * @throws {TypeError} If callback, duration or option types are invalid.
  * @throws {RangeError} If a duration is outside its supported range. Immediate callback
  * errors propagate; timer callback errors go to the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncefn-milliseconds-options | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncefn-milliseconds-options | Full API documentation}
  */
 export function debounce<This, Args extends unknown[], Value>(
   fn: (this: This, ...args: Args) => Value,
   milliseconds?: number,
   options?: DebounceOptions
 ): ScheduledFunction<This, Args, Value>;
+
 /**
- * Creates a function that limits callback invocation frequency while calls continue.
+ * Creates a function that limits how often repeated calls start work while calls continue.
  * Defaults to leading and trailing execution; a lone leading call is not repeated. Uses the
  * latest arguments and receiver. `flush()` and `cancel()` can override ordinary spacing.
  * Invocation starts are limited; asynchronous work is not serialised or cancelled.
@@ -1769,7 +1980,7 @@ export function debounce<This, Args extends unknown[], Value>(
  * @throws {TypeError} If callback, duration or option types are invalid.
  * @throws {RangeError} If the duration is outside its supported range. Immediate callback
  * errors propagate; timer callback errors go to the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#throttlefn-milliseconds-options | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#throttlefn-milliseconds-options | Full API documentation}
  */
 export function throttle<This, Args extends unknown[], Value>(
   fn: (this: This, ...args: Args) => Value,
@@ -1786,13 +1997,14 @@ export function throttle<This, Args extends unknown[], Value>(
  * @returns A predicate resolving to `true` if at least one predicate remains and every
  * awaited result is falsy; otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
  */
 export function norAsync<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S, true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether all are falsy.
  * All arguments and the caller's `this` reach each callback. Nullish entries are skipped;
@@ -1802,12 +2014,13 @@ export function norAsync<
  * @returns A predicate resolving to `true` if at least one predicate remains and every
  * awaited result is falsy; otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
  */
 export function norAsync<
   P extends AnyFunction,
   const S extends readonly (((this: any, ...args: Parameters<P>) => unknown) | Nullish)[]
 >(...predicates: [P, ...S]): CombinedPredicate<[P, ...S], true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether all are falsy.
  * All arguments and the caller's `this` reach each callback. Nullish entries are skipped;
@@ -1817,9 +2030,10 @@ export function norAsync<
  * @returns A predicate resolving to `true` if at least one predicate remains and every
  * awaited result is falsy; otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
  */
 export function norAsync<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S, true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether exactly one is
  * truthy.
@@ -1831,13 +2045,14 @@ export function norAsync<const S extends readonly MaybeCallback[]>(...predicates
  * @returns A predicate resolving to `true` if exactly one awaited result is truthy,
  * otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
  */
 export function xorAsync<
   This,
   Args extends unknown[],
   const S extends readonly (((this: This, ...args: NoInfer<Args>) => unknown) | Nullish)[]
 >(...predicates: S & (((this: This, ...args: Args) => unknown) | Nullish)[]): CombinedPredicate<S, true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether exactly one is
  * truthy.
@@ -1849,12 +2064,13 @@ export function xorAsync<
  * @returns A predicate resolving to `true` if exactly one awaited result is truthy,
  * otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
  */
 export function xorAsync<
   P extends AnyFunction,
   const S extends readonly (((this: any, ...args: Parameters<P>) => unknown) | Nullish)[]
 >(...predicates: [P, ...S]): CombinedPredicate<[P, ...S], true>;
+
 /**
  * Creates a predicate that awaits results in order and determines whether exactly one is
  * truthy.
@@ -1866,7 +2082,7 @@ export function xorAsync<
  * @returns A predicate resolving to `true` if exactly one awaited result is truthy,
  * otherwise `false`. No type-guard narrowing is provided.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#xorasyncfns | Full API documentation}
  */
 export function xorAsync<const S extends readonly MaybeCallback[]>(...predicates: S): CombinedPredicate<S, true>;
 // Use branch-derived context only when the branches supply known inputs.
@@ -1912,8 +2128,9 @@ type AsyncConditional<P extends AnyFunction, T extends AnyFunction, F extends An
   this: PredicateRequirements<[P, T, F]>['receiver'],
   ...args: PredicateRequirements<[P, T, F]>['args']
 ) => Promise<Awaited<ReturnType<T>> | Awaited<ReturnType<F>>>;
+
 /**
- * Creates a function that awaits a predicate and conditionally transforms one input.
+ * Creates a conditional transformation that awaits the predicate before deciding whether to transform the input.
  * Both callbacks receive the same original input and caller's `this`; promise inputs are
  * not unwrapped before callbacks. Construction validates both callbacks immediately.
  * Later callback throws or rejections reject the returned promise unchanged.
@@ -1922,7 +2139,7 @@ type AsyncConditional<P extends AnyFunction, T extends AnyFunction, F extends An
  * @returns A wrapper resolving to the awaited transform result when truthy, otherwise
  * the awaited original input. No type-guard narrowing is provided.
  * @throws {TypeError} If either required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
  */
 export function whenAsync<
   This,
@@ -1933,8 +2150,9 @@ export function whenAsync<
   predicate: P & ((this: This, value: Value) => unknown) & ValidUnary<P>,
   transform: T & ((this: This, value: Value) => unknown) & ValidUnary<T>
 ): AsyncWhen<P, T>;
+
 /**
- * Creates a function that awaits a predicate and conditionally transforms one input.
+ * Creates a conditional transformation that awaits the predicate before deciding whether to transform the input.
  * Both callbacks receive the same original input and caller's `this`; promise inputs are
  * not unwrapped before callbacks. Construction validates both callbacks immediately.
  * Later callback throws or rejections reject the returned promise unchanged.
@@ -1943,14 +2161,15 @@ export function whenAsync<
  * @returns A wrapper resolving to the awaited transform result when truthy, otherwise
  * the awaited original input. No type-guard narrowing is provided.
  * @throws {TypeError} If either required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
  */
 export function whenAsync<P extends (value: UnaryInput<T>) => unknown, T extends UncontextualizedCallback>(
   predicate: P & ValidUnary<P>,
   transform: T & ValidUnary<T> & ([UnaryInput<T>] extends [never] ? never : unknown)
 ): AsyncWhen<P, T>;
+
 /**
- * Creates a function that awaits a predicate and conditionally transforms one input.
+ * Creates a conditional transformation that awaits the predicate before deciding whether to transform the input.
  * Both callbacks receive the same original input and caller's `this`; promise inputs are
  * not unwrapped before callbacks. Construction validates both callbacks immediately.
  * Later callback throws or rejections reject the returned promise unchanged.
@@ -1959,14 +2178,15 @@ export function whenAsync<P extends (value: UnaryInput<T>) => unknown, T extends
  * @returns A wrapper resolving to the awaited transform result when truthy, otherwise
  * the awaited original input. No type-guard narrowing is provided.
  * @throws {TypeError} If either required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
  */
 export function whenAsync<P extends UncontextualizedCallback, T extends (value: UnaryInput<P>) => any>(
   predicate: P & ValidUnary<P>,
   transform: T & ValidUnary<T>
 ): AsyncWhen<P, T>;
+
 /**
- * Creates a function that awaits a predicate and conditionally transforms one input.
+ * Creates a conditional transformation that awaits the predicate before deciding whether to transform the input.
  * Both callbacks receive the same original input and caller's `this`; promise inputs are
  * not unwrapped before callbacks. Every possible callback contributes input and receiver
  * requirements. Construction validates both callbacks immediately. Later callback throws
@@ -1976,14 +2196,15 @@ export function whenAsync<P extends UncontextualizedCallback, T extends (value: 
  * @returns A wrapper resolving to the awaited transform result when truthy, otherwise
  * the awaited original input. No type-guard narrowing is provided.
  * @throws {TypeError} If either required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
  */
 export function whenAsync<P extends UncontextualizedCallback, T extends UncontextualizedCallback>(
   predicate: P & ValidUnary<P>,
   transform: T & ValidUnary<T>
 ): AsyncWhen<P, T>;
+
 /**
- * Creates a function that awaits a predicate and runs only the matching branch.
+ * Creates a reusable function that awaits a predicate, then runs and awaits the selected branch.
  * All original arguments and the caller's `this` reach the predicate and selected branch.
  * The other branch is not called. Construction validates all callbacks immediately.
  * Later callback throws or rejections reject the returned promise unchanged.
@@ -1993,7 +2214,7 @@ export function whenAsync<P extends UncontextualizedCallback, T extends Uncontex
  * @returns A wrapper resolving to the awaited selected branch result. No type-guard
  * narrowing is provided; inputs must be safe for every possibly reached callback.
  * @throws {TypeError} If a required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElseAsync<
   P extends (
@@ -2007,8 +2228,9 @@ export function ifElseAsync<
   onTrue: T & ConditionalBranchContext<T>,
   onFalse: F & ConditionalBranchContext<F>
 ): AsyncConditional<P, T, F>;
+
 /**
- * Creates a function that awaits a predicate and runs only the matching branch.
+ * Creates a reusable function that awaits a predicate, then runs and awaits the selected branch.
  * All original arguments and the caller's `this` reach the predicate and selected branch.
  * The other branch is not called. Construction validates all callbacks immediately.
  * Later callback throws or rejections reject the returned promise unchanged.
@@ -2017,7 +2239,7 @@ export function ifElseAsync<
  * @returns A wrapper resolving to the awaited selected branch result. No type-guard
  * narrowing is provided; inputs must be safe for every possibly reached callback.
  * @throws {TypeError} If a required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElseAsync<
   This,
@@ -2033,7 +2255,7 @@ export function ifElseAsync<
 ): AsyncConditional<S[0], S[1], S[2]>;
 
 /**
- * Creates a function that awaits a predicate and runs only the matching branch.
+ * Creates a reusable function that awaits a predicate, then runs and awaits the selected branch.
  * All original arguments and the caller's `this` reach the predicate and selected branch.
  * The other branch is not called. Construction validates all callbacks immediately.
  * Later callback throws or rejections reject the returned promise unchanged.
@@ -2043,15 +2265,16 @@ export function ifElseAsync<
  * @returns A wrapper resolving to the awaited selected branch result. No type-guard
  * narrowing is provided; inputs must be safe for every possibly reached callback.
  * @throws {TypeError} If a required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElseAsync<
   P extends UncontextualizedCallback,
   T extends (...args: Parameters<P>) => any,
   F extends (...args: Parameters<P>) => any
 >(predicate: P, onTrue: T, onFalse: F): AsyncConditional<P, T, F>;
+
 /**
- * Creates a function that awaits a predicate and runs only the matching branch.
+ * Creates a reusable function that awaits a predicate, then runs and awaits the selected branch.
  * All original arguments and the caller's `this` reach the predicate and selected branch.
  * The other branch is not called. Every possible callback contributes input and receiver
  * requirements. Construction validates all callbacks immediately. Later callback throws
@@ -2062,15 +2285,16 @@ export function ifElseAsync<
  * @returns A wrapper resolving to the awaited selected branch result. No type-guard
  * narrowing is provided; inputs must be safe for every possibly reached callback.
  * @throws {TypeError} If a required callback is not a function.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#ifelseasyncpredicate-ontrue-onfalse | Full API documentation}
  */
 export function ifElseAsync<
   P extends UncontextualizedCallback,
   T extends UncontextualizedCallback,
   F extends UncontextualizedCallback
 >(predicate: P, onTrue: T, onFalse: F): AsyncConditional<P, T, F>;
+
 /**
- * Calls a function once with the supplied arguments, or returns a non-function value unchanged.
+ * Returns a fixed value unchanged or calls a supplied function once to compute the value.
  *
  * No `this` receiver is supplied. Bind methods that need one. Returned Promises are not awaited
  * and returned functions are not called again. TypeScript infers supported callback results;
@@ -2082,7 +2306,7 @@ export function ifElseAsync<
  * returned functions preserve identity.
  * @throws Callback errors propagate unchanged. Functions that require `new` cannot be invoked
  * this way.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#resultvalue-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#resultvalue-args | Full API documentation}
  */
 export function result<Args extends unknown[], Value, F extends object>(
   value: F & ResultContextualCallback<NoInfer<Args>, Value>,
@@ -2091,8 +2315,9 @@ export function result<Args extends unknown[], Value, F extends object>(
     DefaultableCall<F> &
     NoInfer<F extends AnyFunction ? SafeResultSignature<F> : unknown>
 ): NoInfer<EvaluatedResult<F>>;
+
 /**
- * Calls a function once with the supplied arguments, or returns a non-function value unchanged.
+ * Returns a fixed value unchanged or calls a supplied function once to compute the value.
  *
  * No `this` receiver is supplied. Bind methods that need one. Returned Promises are not awaited
  * and returned functions are not called again. TypeScript infers supported callback results;
@@ -2104,7 +2329,7 @@ export function result<Args extends unknown[], Value, F extends object>(
  * returned functions preserve identity.
  * @throws Callback errors propagate unchanged. Functions that require `new` cannot be invoked
  * this way.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#resultvalue-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#resultvalue-args | Full API documentation}
  */
 export function result<
   Params extends unknown[],
@@ -2114,8 +2339,9 @@ export function result<
 
 // Infer the entire input before checking callable union branches. No overload
 // may erase overload signatures to accept an unsafe invocation.
+
 /**
- * Calls a function once with the supplied arguments, or returns a non-function value unchanged.
+ * Returns a fixed value unchanged or calls a supplied function once to compute the value.
  *
  * No `this` receiver is supplied. Bind methods that need one. Returned Promises are not awaited
  * and returned functions are not called again. TypeScript infers supported callback results;
@@ -2127,7 +2353,7 @@ export function result<
  * returned functions preserve identity.
  * @throws Callback errors propagate unchanged. Functions that require `new` cannot be invoked
  * this way.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#resultvalue-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#resultvalue-args | Full API documentation}
  */
 export function result<Value, Params extends unknown[] = []>(
   value: Value & NoInfer<[InvalidResultInvocation<Value, Params>] extends [never] ? unknown : never>,
@@ -2184,8 +2410,8 @@ type ResultContextualCallback<Args extends unknown[], Value> =
 type ApplyIfReceiver<This> = undefined extends This ? This | void : This;
 
 /**
- * Applies a transformation immediately when a boolean condition or predicate is truthy.
- * Otherwise, returns the exact input unchanged.
+ * Applies a transformation immediately when a boolean flag is `true` or a predicate returns a truthy
+ * value. Otherwise, returns the original input.
  *
  * Validates the condition and transform before callbacks run. Both callbacks receive
  * one value and the caller's exact receiver. Predicate promises are truthy without
@@ -2197,7 +2423,7 @@ type ApplyIfReceiver<This> = undefined extends This ? This | void : This;
  * @returns The transformation result for true, the original input for false, or either
  * result for a dynamic condition.
  * @throws TypeError for invalid condition or transform arguments. Callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#applyifvalue-condition-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#applyifvalue-condition-transform | Full API documentation}
  */
 export function applyIf<This, Input, Output>(
   this: ApplyIfReceiver<This>,
@@ -2205,9 +2431,10 @@ export function applyIf<This, Input, Output>(
   condition: true,
   transform: (this: This, value: NoInfer<Input>) => Output
 ): Output;
+
 /**
- * Applies a transformation immediately when a boolean condition or predicate is truthy.
- * Otherwise, returns the exact input unchanged.
+ * Applies a transformation immediately when a boolean flag is `true` or a predicate returns a truthy
+ * value. Otherwise, returns the original input.
  *
  * Validates the condition and transform before callbacks run. Both callbacks receive
  * one value and the caller's exact receiver. Predicate promises are truthy without
@@ -2219,7 +2446,7 @@ export function applyIf<This, Input, Output>(
  * @returns The transformation result for true, the original input for false, or either
  * result for a dynamic condition.
  * @throws TypeError for invalid condition or transform arguments. Callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#applyifvalue-condition-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#applyifvalue-condition-transform | Full API documentation}
  */
 export function applyIf<This, Input>(
   this: ApplyIfReceiver<This>,
@@ -2227,9 +2454,10 @@ export function applyIf<This, Input>(
   condition: false,
   transform: (this: This, value: NoInfer<Input>) => unknown
 ): Input;
+
 /**
- * Applies a transformation immediately when a boolean condition or predicate is truthy.
- * Otherwise, returns the exact input unchanged.
+ * Applies a transformation immediately when a boolean flag is `true` or a predicate returns a truthy
+ * value. Otherwise, returns the original input.
  *
  * Validates the condition and transform before callbacks run. Both callbacks receive
  * one value and the caller's exact receiver. Predicate promises are truthy without
@@ -2241,7 +2469,7 @@ export function applyIf<This, Input>(
  * @returns The transformation result for true, the original input for false, or either
  * result for a dynamic condition.
  * @throws TypeError for invalid condition or transform arguments. Callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#applyifvalue-condition-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#applyifvalue-condition-transform | Full API documentation}
  */
 export function applyIf<This, Input, Output>(
   this: ApplyIfReceiver<This>,

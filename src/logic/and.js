@@ -13,7 +13,7 @@ var normalizeFunctions = require('../util/normalizeFunctions');
  * results are truthy; otherwise `false`.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated before evaluation; later callback errors propagate.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andfns | Full API documentation}
  * @example
  * const predicate = and(value => typeof value === 'number', value => value > 0);
  * predicate(3);                  // => true
@@ -32,6 +32,7 @@ function and(fns) {
         return false;
       }
     }
+
     return fns.length > 0;
   };
 }

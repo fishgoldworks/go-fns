@@ -12,7 +12,7 @@ var expectFunction = require('../util/expectFunction');
  * @returns {Function} An async predicate resolving to `true` if the awaited callback result
  * is falsy; otherwise `false`. Callback throws and rejections reject with the original value.
  * @throws {TypeError} If the required callback is not a function. Validation is synchronous.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#notasyncfn | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#notasyncfn | Full API documentation}
  * @example
  * const isNotInteger = notAsync(async value => Number.isInteger(value));
  * await isNotInteger(1.5);       // => true

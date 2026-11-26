@@ -1,10 +1,12 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
 var scheduleOptions = require('./util/scheduleOptions');
 var createScheduler = require('./util/createScheduler');
+
 /**
- * Creates a function that combines a burst of calls using the latest arguments and receiver.
- * Defaults to trailing execution after calls stop. Optional `maxWait` limits postponement
+ * Creates a function that combines a burst of calls, waiting for a pause by default.
+ * It uses the latest arguments and receiver. Optional `maxWait` limits postponement
  * while calls continue, subject to host timer scheduling. Construction does not invoke the
  * callback. `cancel()`, `flush()` and `pending()` manage scheduled calls; started
  * asynchronous work continues.
@@ -22,7 +24,7 @@ var createScheduler = require('./util/createScheduler');
  * @throws {TypeError} If callback, duration or option types are invalid.
  * @throws {RangeError} If a duration is outside its supported range. Immediate callback
  * errors propagate; timer callback errors go to the host.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#debouncefn-milliseconds-options | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#debouncefn-milliseconds-options | Full API documentation}
  * @example
  * const update = debounce(value => value, 100);
  * update("first");
@@ -36,6 +38,8 @@ var createScheduler = require('./util/createScheduler');
  */
 function debounce(fn, milliseconds, options) {
   expectFunction(fn);
+
   return createScheduler(fn, scheduleOptions(milliseconds, options, false, true));
 }
+
 module.exports = debounce;

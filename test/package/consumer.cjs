@@ -1,4 +1,5 @@
 'use strict';
+
 // This consumer deliberately uses only capabilities present in Node.js 8.0.0.
 var assert = require('assert');
 var path = require('path');
@@ -7,6 +8,7 @@ var expected = [
   'and',
   'andAsync',
   'applyIf',
+  'ary',
   'attempt',
   'attemptResult',
   'attemptResultAsync',
@@ -14,6 +16,7 @@ var expected = [
   'delay',
   'ifElse',
   'ifElseAsync',
+  'memoize',
   'nor',
   'norAsync',
   'not',
@@ -36,6 +39,7 @@ var expected = [
   'unary',
   'when',
   'whenAsync',
+  'withDefaultArgs',
   'xor',
   'xorAsync'
 ];
@@ -62,8 +66,10 @@ function load(relative) {
     packageDirectory ? path.join(packageDirectory, relative || '.') : 'go-fns' + (relative ? '/' + relative : '')
   );
 }
+
 async function rejects(promise, expectedError) {
   var rejected = false;
+
   try {
     await promise;
   } catch (error) {
@@ -71,8 +77,10 @@ async function rejects(promise, expectedError) {
     if (typeof expectedError === 'function') assert(error instanceof expectedError);
     else assert.strictEqual(error, expectedError);
   }
+
   assert.strictEqual(rejected, true, 'Expected a rejected promise');
 }
+
 async function withClock(run) {
   var original = {
     set: global.setTimeout,
@@ -83,17 +91,23 @@ async function withClock(run) {
   var now = 1000,
     sequence = 0,
     jobs = new Map();
+
   global.setTimeout = function (fn, duration) {
     var id = ++sequence;
+
     jobs.set(id, { fn: fn, time: now + duration });
+
     return id;
   };
+
   global.clearTimeout = function (id) {
     jobs.delete(id);
   };
+
   Date.now = function () {
     return now;
   };
+
   Object.defineProperty(global, 'performance', { configurable: true, value: undefined });
   var clock = {
     jobs: jobs,
@@ -103,9 +117,11 @@ async function withClock(run) {
     tick: function (duration) {
       var end = now + duration,
         fired = 0;
+
       while (true) {
         var firstId = undefined,
           first = undefined;
+
         jobs.forEach(function (job, id) {
           if (job.time <= end && (!first || job.time < first.time)) {
             firstId = id;
@@ -118,9 +134,11 @@ async function withClock(run) {
         jobs.delete(firstId);
         first.fn();
       }
+
       now = end;
     }
   };
+
   try {
     return await run(clock);
   } finally {
@@ -131,6 +149,7 @@ async function withClock(run) {
     else delete global.performance;
   }
 }
+
 function signalController() {
   var listeners = [];
   var signal = {
@@ -149,6 +168,7 @@ function signalController() {
       });
     }
   };
+
   return {
     signal: signal,
     listeners: function () {
@@ -169,15 +189,18 @@ function signalController() {
 
 async function exercise(api, format) {
   var checks = 0;
+
   async function check(name, run) {
     try {
       await run();
       checks++;
     } catch (error) {
       var failure = new Error(format + ': ' + name + ': ' + ((error && error.stack) || String(error)));
+
       throw failure;
     }
   }
+
   await check('public API and removed attachments', function () {
     expected.forEach(function (name) {
       assert.strictEqual(typeof api[name], 'function', name);
@@ -193,6 +216,7 @@ async function exercise(api, format) {
       receiver = {},
       promise = Promise.resolve(false),
       calls = 0;
+
     assert.strictEqual(api.applyIf('42', true, Number), 42);
     assert.strictEqual(
       api.applyIf(value, false, function () {
@@ -220,12 +244,14 @@ async function exercise(api, format) {
           calls++;
           assert.strictEqual(this, receiver);
           assert.strictEqual(arguments.length, 1);
+
           return input;
         },
         function (input) {
           calls++;
           assert.strictEqual(this, receiver);
           assert.strictEqual(arguments.length, 1);
+
           return input;
         }
       ),
@@ -250,6 +276,7 @@ async function exercise(api, format) {
       promise = Promise.resolve(7),
       calls = 0,
       error = {};
+
     assert.strictEqual(api.result(value), value);
     assert.strictEqual(api.result(promise), promise);
     assert.strictEqual(
@@ -261,6 +288,7 @@ async function exercise(api, format) {
           assert.strictEqual(arguments.length, 2);
           assert.strictEqual(first, value);
           assert.strictEqual(second, undefined);
+
           return promise;
         },
         value,
@@ -272,6 +300,7 @@ async function exercise(api, format) {
     var inner = function () {
       throw Error('Unexpected recursion');
     };
+
     assert.strictEqual(
       api.result(function () {
         return inner;
@@ -294,6 +323,7 @@ async function exercise(api, format) {
       var controller = signalController(),
         reason = {};
       var pending = api.sleep(5, { signal: controller.signal });
+
       controller.signal.aborted = true;
       controller.signal.reason = reason;
       clock.tick(5);
@@ -307,11 +337,13 @@ async function exercise(api, format) {
     var input = Promise.resolve('input'),
       receiver = {},
       reason = {};
+
     assert.strictEqual(
       await api
         .notAsync(function (value) {
           assert.strictEqual(this, receiver);
           assert.strictEqual(value, input);
+
           return Promise.resolve(false);
         })
         .call(receiver, input),
@@ -333,6 +365,7 @@ async function exercise(api, format) {
           assert.strictEqual(value, input);
           assert.strictEqual(second, undefined);
           assert.strictEqual(arguments.length, 2);
+
           return new Promise(function (resolve) {
             release = resolve;
           });
@@ -344,6 +377,7 @@ async function exercise(api, format) {
           assert.strictEqual(value, input);
           assert.strictEqual(second, undefined);
           assert.strictEqual(arguments.length, 2);
+
           return !proceed;
         },
         function () {
@@ -351,6 +385,7 @@ async function exercise(api, format) {
         }
       );
       var pending = run.call(receiver, input, undefined);
+
       assert(pending instanceof Promise);
       assert.deepStrictEqual(calls, ['first']);
       release(proceed);
@@ -374,6 +409,7 @@ async function exercise(api, format) {
         reason
       );
     }
+
     await rejects(
       api.notAsync(function () {
         throw reason;
@@ -404,6 +440,7 @@ async function exercise(api, format) {
         assert.strictEqual(arguments.length, 1);
         assert.strictEqual(value, input);
         calls.push('predicate');
+
         return new Promise(function (resolve) {
           release = resolve;
         });
@@ -413,10 +450,12 @@ async function exercise(api, format) {
         assert.strictEqual(arguments.length, 1);
         assert.strictEqual(value, input);
         calls.push('transform');
+
         return Promise.resolve(9);
       }
     );
     var pending = transform.call(receiver, input, 'ignored');
+
     assert(pending instanceof Promise);
     assert.deepStrictEqual(calls, ['predicate']);
     release(true);
@@ -426,6 +465,7 @@ async function exercise(api, format) {
       await api.whenAsync(
         function (value) {
           assert.strictEqual(value, input);
+
           return Promise.resolve(false);
         },
         function () {
@@ -440,6 +480,7 @@ async function exercise(api, format) {
         assert.strictEqual(first, input);
         assert.strictEqual(second, undefined);
         assert.strictEqual(arguments.length, 2);
+
         return Promise.resolve(false);
       },
       function () {
@@ -450,6 +491,7 @@ async function exercise(api, format) {
         assert.strictEqual(first, input);
         assert.strictEqual(second, undefined);
         assert.strictEqual(arguments.length, 2);
+
         return {
           then: function (resolve) {
             resolve(11);
@@ -457,6 +499,7 @@ async function exercise(api, format) {
         };
       }
     );
+
     assert.strictEqual(await choose.call(receiver, input, undefined), 11);
     assert.strictEqual(
       await api.ifElseAsync(
@@ -560,6 +603,7 @@ async function exercise(api, format) {
     );
     for (var i = 0; i < 2; i++) {
       var name = i ? 'xorAsync' : 'norAsync';
+
       assert.throws(function () {
         api[name](function () {
           return true;
@@ -568,11 +612,13 @@ async function exercise(api, format) {
       var receiver = {},
         input = {},
         reason = {};
+
       await api[name](function (first, second) {
         assert.strictEqual(this, receiver);
         assert.strictEqual(first, input);
         assert.strictEqual(second, undefined);
         assert.strictEqual(arguments.length, 2);
+
         return Promise.resolve(false);
       }).call(receiver, input, undefined);
       await rejects(
@@ -597,15 +643,18 @@ async function exercise(api, format) {
       function (a, b) {
         assert.strictEqual(this, receiver);
         seen.push(arguments.length);
+
         return a + b;
       },
       undefined,
       function (value) {
         assert.strictEqual(this, receiver);
         seen.push(arguments.length);
+
         return value * 2;
       }
     );
+
     assert.strictEqual(pipeline.call(receiver, 2, 3), 10);
     assert.deepStrictEqual(seen, [2, 1]);
     assert.strictEqual(api.pipe()(), undefined);
@@ -617,6 +666,7 @@ async function exercise(api, format) {
     var pipeline = api.pipeAsync(
       function (a, b) {
         assert.strictEqual(this, receiver);
+
         return {
           then: function (resolve) {
             order.push('resolve');
@@ -629,9 +679,11 @@ async function exercise(api, format) {
         assert.strictEqual(this, receiver);
         assert.strictEqual(arguments.length, 1);
         order.push('next');
+
         return value * 2;
       }
     );
+
     assert.strictEqual(await pipeline.call(receiver, 2, 3), 10);
     assert.deepStrictEqual(order, ['resolve', 'next']);
     await rejects(
@@ -647,21 +699,74 @@ async function exercise(api, format) {
     );
     assert.strictEqual(await api.pipeAsync()(), undefined);
   });
+  await check('withDefaultArgs supplies positional defaults without changing call identity', function () {
+    var receiver = {};
+    var collect = api.withDefaultArgs(
+      function () {
+        assert.strictEqual(this, receiver);
+
+        return Array.prototype.slice.call(arguments);
+      },
+      1,
+      'info',
+      undefined
+    );
+
+    assert.deepStrictEqual(collect.call(receiver), [1, 'info', undefined]);
+    assert.deepStrictEqual(collect.call(receiver, undefined, '', null, false), [1, '', null, false]);
+    var promise = Promise.resolve(7);
+    var forward = api.withDefaultArgs(function (value) {
+      return value;
+    }, promise);
+
+    assert.strictEqual(forward(), promise);
+    assert.strictEqual(forward(null), null);
+    assert.throws(function () {
+      api.withDefaultArgs({});
+    }, TypeError);
+  });
+  await check('argument caps and memoized call keys work on the installed runtime', function () {
+    var owner = {};
+    var capture = api.ary(function () {
+      assert.strictEqual(this, owner);
+
+      return Array.prototype.slice.call(arguments);
+    }, 2);
+
+    assert.deepStrictEqual(capture.call(owner, 'a', 'b', 'c'), ['a', 'b']);
+    assert.deepStrictEqual(capture.call(owner), []);
+
+    var cached = api.memoize(function (a, b) {
+      return [this, a, b];
+    });
+    var result = cached.call(owner, 1, 2);
+
+    assert.strictEqual(cached.call(owner, 1, 2), result);
+    assert.notStrictEqual(cached.call(owner, 1, 3), result);
+    assert.notStrictEqual(cached.call({}, 1, 2), result);
+    assert.strictEqual(cached.clear(), undefined);
+    assert.notStrictEqual(cached.call(owner, 1, 2), result);
+  });
   await check('spread uses array-like inputs and caller receiver', function () {
     var receiver = {};
     var spread = api.spread(function () {
       assert.strictEqual(this, receiver);
+
       return Array.prototype.slice.call(arguments);
     });
+
     assert.deepStrictEqual(spread.call(receiver, { 0: 'a', 1: 'b', length: 2 }), ['a', 'b']);
     assert.deepStrictEqual(spread.call(receiver, null), []);
   });
   await check('partial adapters preserve argument order and receiver', function () {
     var receiver = {};
+
     function collect() {
       assert.strictEqual(this, receiver);
+
       return Array.prototype.slice.call(arguments);
     }
+
     assert.deepStrictEqual(api.partial(collect, 1, 2).call(receiver, 3), [1, 2, 3]);
     assert.deepStrictEqual(api.partialRight(collect, 2, 3).call(receiver, 1), [1, 2, 3]);
     assert.deepStrictEqual(api.partial(collect).call(receiver, 1, 2), [1, 2]);
@@ -671,10 +776,13 @@ async function exercise(api, format) {
   });
   await check('attempt preserves callback receiver, values and throws', function () {
     var reason = {};
+
     function callback(value) {
       assert.strictEqual(this, callback);
+
       return value;
     }
+
     assert.strictEqual(api.attempt(callback, reason), reason);
     assert.strictEqual(
       api.attempt(function () {
@@ -692,10 +800,13 @@ async function exercise(api, format) {
   });
   await check('attemptResultAsync captures throws and thenable failures', async function () {
     var reason = {};
+
     function callback(value) {
       assert.strictEqual(this, callback);
+
       return Promise.resolve(value);
     }
+
     assert.deepStrictEqual(await api.attemptResultAsync(callback, reason), { ok: true, value: reason });
     assert.deepStrictEqual(
       await api.attemptResultAsync(function () {
@@ -716,11 +827,14 @@ async function exercise(api, format) {
   });
   await check('repeat forwards arguments and preserves count validation', function () {
     var count = 0;
+
     function callback(value) {
       assert.strictEqual(this, callback);
       assert.strictEqual(arguments.length, 1);
+
       return value + count++;
     }
+
     assert.deepStrictEqual(api.repeat(callback, 3, 10), [10, 11, 12]);
     assert.deepStrictEqual(api.repeat(callback, null), []);
     assert.throws(function () {
@@ -734,6 +848,7 @@ async function exercise(api, format) {
     var active = false,
       count = 0,
       reason = {};
+
     async function callback(value) {
       assert.strictEqual(this, callback);
       assert.strictEqual(arguments.length, 1);
@@ -741,13 +856,16 @@ async function exercise(api, format) {
       active = true;
       await Promise.resolve();
       active = false;
+
       return value + count++;
     }
+
     assert.deepStrictEqual(await api.repeatAsync(callback, 3, 10), [10, 11, 12]);
     count = 0;
     await rejects(
       api.repeatAsync(function () {
         count++;
+
         return Promise.reject(reason);
       }, 3),
       reason
@@ -758,21 +876,27 @@ async function exercise(api, format) {
   await check('logical connectives preserve truthiness, receiver and short circuiting', function () {
     var receiver = {},
       seen = [];
+
     function yes(value) {
       assert.strictEqual(this, receiver);
       assert.strictEqual(value, 4);
       seen.push('yes');
+
       return 'yes';
     }
+
     function no(value) {
       assert.strictEqual(this, receiver);
       assert.strictEqual(value, 4);
       seen.push('no');
+
       return 0;
     }
+
     function unused() {
       throw Error('Unexpected predicate');
     }
+
     assert.strictEqual(api.and(null, yes, no, unused).call(receiver, 4), false);
     assert.strictEqual(api.or(no, yes, unused).call(receiver, 4), true);
     assert.strictEqual(api.nor(no, yes, unused).call(receiver, 4), false);
@@ -793,8 +917,10 @@ async function exercise(api, format) {
       assert.strictEqual(this, receiver);
       assert.strictEqual(arguments.length, 1);
       assert.strictEqual(input, value);
+
       return 'ignored';
     });
+
     assert.strictEqual(sync.call(receiver, value, 'ignored'), value);
     var asyncTap = api.tapAsync(async function (input) {
       assert.strictEqual(this, receiver);
@@ -802,6 +928,7 @@ async function exercise(api, format) {
       await Promise.resolve();
       observed = true;
     });
+
     assert.strictEqual(await asyncTap.call(receiver, value), value);
     assert.strictEqual(observed, true);
   });
@@ -812,8 +939,10 @@ async function exercise(api, format) {
     var once = api.once(function (input) {
       calls++;
       assert.strictEqual(this, receiver);
+
       return input;
     });
+
     assert.strictEqual(once.call(receiver, value), value);
     assert.strictEqual(once('ignored'), value);
     assert.strictEqual(calls, 1);
@@ -823,6 +952,7 @@ async function exercise(api, format) {
         failedCalls++;
         throw reason;
       });
+
     assert.throws(failed, function (error) {
       return error === reason;
     });
@@ -834,6 +964,7 @@ async function exercise(api, format) {
       promised = api.once(function () {
         return promise;
       });
+
     assert.strictEqual(promised(), promise);
     assert.strictEqual(promised(), promise);
   });
@@ -845,30 +976,37 @@ async function exercise(api, format) {
       function (input) {
         assert.strictEqual(this, receiver);
         assert.strictEqual(arguments.length, 1);
+
         return input === value;
       },
       function (input) {
         assert.strictEqual(this, receiver);
         assert.strictEqual(input, value);
+
         return transformed;
       }
     );
+
     assert.strictEqual(when.call(receiver, value, 2), transformed);
     assert.strictEqual(when.call(receiver, 0), 0);
     var conditional = api.ifElse(
       function (a, b) {
         assert.strictEqual(this, receiver);
+
         return a > b;
       },
       function (a, b) {
         assert.strictEqual(this, receiver);
+
         return a - b;
       },
       function (a, b) {
         assert.strictEqual(this, receiver);
+
         return b - a;
       }
     );
+
     assert.strictEqual(conditional.call(receiver, 5, 2), 3);
     assert.strictEqual(conditional.call(receiver, 2, 5), 3);
   });
@@ -933,6 +1071,7 @@ async function exercise(api, format) {
         undefined
       );
     });
+
     assert.strictEqual(typeof handle.ref, 'function');
     synchronous = false;
     await waiting;
@@ -943,6 +1082,7 @@ async function exercise(api, format) {
       assert.strictEqual(value, undefined);
       done = true;
     });
+
     assert.strictEqual(done, false);
     await Promise.resolve();
     assert.strictEqual(done, false);
@@ -958,11 +1098,13 @@ async function exercise(api, format) {
           function (value) {
             assert.strictEqual(this, receiver);
             seen.push([clock.now(), value]);
+
             return value;
           },
           10,
           { leading: false }
         );
+
         scheduled.call(receiver, 'first');
         clock.tick(2);
         scheduled.call(receiver, 'last');
@@ -981,6 +1123,7 @@ async function exercise(api, format) {
       });
     });
   }
+
   for (var schedulerName of ['debounce', 'throttle']) {
     for (var clockCase of ['failure', 'expiry reentry', 'flush reentry']) {
       await check(schedulerName + ' clock ' + clockCase, async function () {
@@ -992,15 +1135,18 @@ async function exercise(api, format) {
             cached = {},
             replacement = {},
             seen = [];
+
           Object.defineProperty(global, 'performance', {
             configurable: true,
             value: {
               now: function () {
                 if (hook) {
                   var run = hook;
+
                   hook = undefined;
                   run();
                 }
+
                 return clock.now();
               }
             }
@@ -1009,6 +1155,7 @@ async function exercise(api, format) {
             function (value) {
               assert.strictEqual(this, receiver);
               seen.push(value);
+
               return value;
             },
             10,
@@ -1022,6 +1169,7 @@ async function exercise(api, format) {
             scheduled.cancel();
             scheduled.call(receiver, replacement);
           };
+
           if (clockCase === 'failure')
             assert.throws(
               function () {
@@ -1040,6 +1188,7 @@ async function exercise(api, format) {
             assert.strictEqual(scheduled.flush(), cached);
             scheduled.call(receiver, replacement);
           }
+
           clock.tick(10);
           assert.deepStrictEqual(seen, [cached, replacement]);
           assert.strictEqual(scheduled.pending(), false);
@@ -1048,6 +1197,7 @@ async function exercise(api, format) {
       });
     }
   }
+
   await check('debounce maxWait bounds postponement', async function () {
     await withClock(function (clock) {
       var seen = [],
@@ -1058,11 +1208,13 @@ async function exercise(api, format) {
           10,
           { maxWait: 25 }
         );
+
       scheduled();
       for (var i = 0; i < 4; i++) {
         clock.tick(5);
         scheduled();
       }
+
       clock.tick(5);
       assert.deepStrictEqual(seen, [1025]);
       scheduled.cancel();
@@ -1074,6 +1226,7 @@ async function exercise(api, format) {
         scheduled = api.throttle(function () {
           return ++calls;
         }, 10);
+
       assert.strictEqual(scheduled(), 1);
       assert.strictEqual(scheduled.pending(), false);
       clock.tick(10);
@@ -1086,6 +1239,7 @@ async function exercise(api, format) {
       var controller = signalController(),
         reason = {},
         waiting = api.sleep(10, { signal: controller.signal });
+
       assert.strictEqual(clock.jobs.size, 1);
       assert.strictEqual(controller.listeners(), 1);
       controller.dispatch();
@@ -1115,11 +1269,13 @@ async function exercise(api, format) {
             ? 'logic/'
             : '') +
           name;
+
         assert.strictEqual(load(relative), api[name], relative);
         assert.strictEqual(load(relative + '.js'), api[name], relative + '.js');
       });
     });
   var result = { format: format, apis: expected.length, checks: checks };
+
   results.push(result);
   console.log(JSON.stringify(result));
 }
@@ -1139,6 +1295,7 @@ async function main() {
     })
   );
 }
+
 main().catch(function (error) {
   console.error((error && error.stack) || error);
   process.exitCode = 1;

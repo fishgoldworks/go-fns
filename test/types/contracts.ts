@@ -8,8 +8,10 @@ const lengths = pipe(
   (text: string) => text.trim(),
   (text) => text.length
 );
+
 type Lengths = Assert<Equal<ReturnType<typeof lengths>, number>>;
 const numeric: number = lengths(' hi ');
+
 // @ts-expect-error incorrect invocation argument
 lengths(3);
 pipe(
@@ -31,6 +33,7 @@ const nullish = pipe(
   (n: number) => n * 2
 );
 const nullishResult: number = nullish('ab');
+
 pipe(
   // @ts-expect-error nullish gaps must not conceal an invalid chain
   null,
@@ -52,6 +55,7 @@ const long = pipe(
   (n: number) => String(n)
 );
 const longResult: string = long(2);
+
 pipe(
   // @ts-expect-error invalid long chain is still rejected
   (n: number) => n,
@@ -70,6 +74,7 @@ const asyncLengths = pipeAsync(
   (text) => text.length
 );
 const lengthPromise: Promise<number> = asyncLengths(' hi ');
+
 pipeAsync(
   // @ts-expect-error async results are awaited before the next stage
   async (text: string) => text.length,
@@ -93,6 +98,7 @@ const receiverPipeline = pipe(
   }
 );
 const receiverResult: string = receiverPipeline.call({ prefix: 'a', suffix: 'b' }, 'x');
+
 // @ts-expect-error receiver is required
 receiverPipeline('x');
 // @ts-expect-error all receiver requirements must be met
@@ -104,27 +110,35 @@ const asyncReceiver = pipeAsync(
   async (n) => n * 2
 );
 const receiverPromise: Promise<number> = asyncReceiver.call({ id: 2 }, 3);
+
 // @ts-expect-error async receiver cannot be omitted
 asyncReceiver(3);
 
 const result = attemptResult((n: number) => n * 2, 3);
+
 if (result.ok) {
   const value: number = result.value;
+
   // @ts-expect-error no error on success
   void result.error;
 } else {
   const error: unknown = result.error;
+
   // @ts-expect-error no value on failure
   void result.value;
 }
+
 const arbitrary: Result<string> = { ok: false, error: undefined };
+
 // @ts-expect-error wrong callback arguments
 attemptResult((n: number) => n * 2, 'no');
 const promiseResult: Promise<Result<number>> = attemptResultAsync(async (n: number) => n * 2, 3);
 const syncPromise: Result<Promise<number>> = attemptResult(() => Promise.resolve(1));
+
 function needsReceiver(this: { id: number }, n: number) {
   return this.id + n;
 }
+
 // @ts-expect-error attempt variants use the callback itself as receiver; bind explicitly
 attemptResult(needsReceiver, 2);
 const boundResult: Result<number> = attemptResult(needsReceiver.bind({ id: 1 }), 2);
@@ -135,6 +149,7 @@ const person = { id: 1, name: 'Michael' };
 const observe = tap((value: { id: number }) => value.id);
 const preserved = observe(person);
 const name: string = preserved.name;
+
 // @ts-expect-error required observed input
 observe();
 // @ts-expect-error incompatible observed input
@@ -144,12 +159,14 @@ const promiseObserved: Promise<number> = tapAsync((value: Promise<number>) => {}
 const observedReceiver = tap(function (this: { count: number }, n: number) {
   this.count += n;
 });
+
 // @ts-expect-error observer receiver required
 observedReceiver(1);
 observedReceiver.call({ count: 0 }, 1);
 
 const addOnce = once((a: number, b: number) => a + b);
 const sum: number = addOnce(1, 2);
+
 // @ts-expect-error required arguments retained
 addOnce(1);
 // @ts-expect-error wrong argument type
@@ -157,12 +174,15 @@ addOnce('1', 2);
 const get = once(async () => 3);
 const got: Promise<number> = get();
 const boundOnce = sourceOnce(needsReceiver);
+
 // @ts-expect-error once forwards required caller receiver
 boundOnce(3);
 const onceResult: number = boundOnce.call({ id: 1 }, 3);
+
 // @ts-expect-error no invented reset API
 addOnce.reset();
 const repeated: number[] = f.repeat((n: number) => n * 2, 3, 2);
+
 // @ts-expect-error preserve repeat callback argument types
 f.repeat((n: number) => n * 2, 3, 'no');
 const predicate = f.and(
@@ -171,18 +191,22 @@ const predicate = f.and(
   (u) => u.enabled
 );
 const allowed: boolean = predicate({ enabled: true });
+
 // @ts-expect-error wrong predicate argument
 predicate('x');
 const negated = f.not((n: number) => n > 0);
 const no: boolean = negated(0);
+
 // @ts-expect-error not preserves predicate arguments
 negated('x');
 const spread = f.spread((a: number, b: string) => a + b);
 const joined: string = spread([1, 'x'] as const);
+
 // @ts-expect-error heterogeneous tuple elements are wrong
 spread(['x', 1] as const);
 const wait: Promise<void> = sleep(0);
 const waitDefault: Promise<void> = sleep();
+
 // @ts-expect-error duration cannot be a string
 sleep('3');
 // @ts-expect-error null is not a default duration
@@ -195,6 +219,7 @@ const signal: f.AbortSignalLike = {
   addEventListener(type, listener) {},
   removeEventListener(type, listener) {}
 };
+
 sleep(2, { signal });
 // @ts-expect-error malformed signal
 sleep(2, { signal: { aborted: false } });
@@ -204,6 +229,7 @@ const optionalPipeline = pipe((n: number) => n, maybeStage);
 const optionalResult: number | string = optionalPipeline(1);
 // @ts-expect-error optional stage may be absent
 const optionalWrong: string = optionalPipeline(1);
+
 pipe(
   // @ts-expect-error every optional execution path must be compatible
   (n: number) => n,
@@ -215,6 +241,7 @@ const homogeneousResult: number | undefined = pipe(...homogeneous)(1);
 const nulls: Array<null | undefined> = [];
 const noStages: undefined = pipe(...nulls)('anything');
 const optionalAsyncResult: Promise<number | string> = pipeAsync((n: number) => n, maybeStage)(2);
+
 pipeAsync(
   // @ts-expect-error async path validation includes skipped optional stages
   (n: number) => n,
@@ -236,6 +263,7 @@ const asyncTappedText = pipeAsync(
   (s) => s.length
 );
 const asyncTappedNumber: Promise<number> = asyncTappedText('hi');
+
 pipe(
   // @ts-expect-error tap must not hide an incompatible stage input
   (n: number) => n,

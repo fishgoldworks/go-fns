@@ -27,6 +27,7 @@ const all: () => number = partial(add, 1, 2);
 const allRight: () => number = partialRight(add, 1, 2);
 const noBinding: typeof add = partial(add);
 const noRightBinding: typeof add = partialRight(add);
+
 // @ts-expect-error bad leading argument
 partial(add, '1');
 // @ts-expect-error bad trailing argument
@@ -51,11 +52,14 @@ const sum = (...args: number[]): number => args.length;
 const rightRest: (...args: number[]) => number = partialRight(sum, 1, 2);
 
 const receiver = { prefix: 'x', other: 1 };
+
 function method(this: { prefix: string }, n: number, label: string) {
   return this.prefix + n + label;
 }
+
 const boundHead = partial(method, 1);
 const boundTail = partialRight(method, 'a');
+
 boundHead.call(receiver, 'b');
 boundTail.call(receiver, 2);
 // @ts-expect-error missing callback receiver
@@ -66,6 +70,7 @@ const deepPartial: typeof partial = partialDeep;
 
 const parsed: number[] = ['10', '20'].map(unary(parseInt));
 const noArgs: number = unary(() => 1)();
+
 // @ts-expect-error callback cannot require a second input that unary omits
 unary((a: number, b: number) => a + b);
 // @ts-expect-error string is required
@@ -76,6 +81,7 @@ const unaryThis = unary(function (this: { ok: boolean }, value: number) {
   return this.ok && value > 0;
 });
 const unaryBool: boolean = unaryThis.call({ ok: true }, 3);
+
 // @ts-expect-error callback receiver is required
 unaryThis(2);
 
@@ -89,12 +95,14 @@ const changed: string | number = when(
 )('');
 const stringCondition = (x: string) => !!x;
 const numberTransform = (x: number) => x;
+
 // @ts-expect-error callback input types disagree
 when(stringCondition, numberTransform);
 const stringWrapper = when(
   (x: string) => !!x,
   (x) => x
 );
+
 // @ts-expect-error wrong wrapper input
 stringWrapper(3);
 const narrowed = when(
@@ -113,6 +121,7 @@ const conditionalIgnore = ifElse(
   (x: number) => x - 1
 );
 const ignoreResult: number = conditionalIgnore(1);
+
 ifElse(
   // @ts-expect-error branches must accept compatible inputs
   (x: string) => !!x,
@@ -136,6 +145,7 @@ const choice = ifElse(
   }
 );
 const c: number | string = choice.call({ p: true, a: 1, b: '' }, 2);
+
 // @ts-expect-error requires all callback receivers
 choice.call({ p: true }, 2);
 const pipelineResult: string = pipe(
@@ -148,6 +158,7 @@ const pipelineResult: string = pipe(
 
 const repetitions: Promise<number[]> = repeatAsync(async (n: number) => n + 1, 2, 3);
 const repeatedNull: Promise<number[]> = repeatAsync(() => 1, null);
+
 // @ts-expect-error count must be numeric
 repeatAsync(() => 1, '2');
 // @ts-expect-error callback argument is missing
@@ -164,6 +175,7 @@ const isPending: boolean = scheduled.pending();
 const nothing: void = scheduled.cancel();
 // @ts-expect-error scheduled result may not exist yet
 const certainNumber: number = scheduled('query');
+
 // @ts-expect-error callback args preserved
 scheduled(3);
 // @ts-expect-error a required input cannot disappear
@@ -181,23 +193,28 @@ const scheduledThis = throttle(function (this: { limit: number }, n: number) {
   return this.limit + n;
 });
 const number3: number | undefined = scheduledThis.call({ limit: 3 }, 1);
+
 // @ts-expect-error correct receiver is required
 scheduledThis(1);
 const withOptional: ScheduledFunction<unknown, [value?: number], number> = debounce((value = 0) => value);
+
 withOptional();
 const deepThrottle: typeof throttle = throttleDeep;
 
 // Infer wrappers without a contextual assignment hiding missing inference.
 const inferredRight = partialRight((n: number, label: string) => label + n, 'x');
 const inferredString: string = inferredRight(2);
+
 // @ts-expect-error remaining parameter is number, not unknown
 inferredRight('2');
 const optionalSlots = partialRight((n: number, label?: string, count?: number) => n + (count || 0), 3);
+
 optionalSlots(1, undefined);
 optionalSlots(1, 'x');
 // @ts-expect-error no padding: omitting the prefix slot would shift the saved count
 optionalSlots(1);
 const restPrefix = partialRight((title: string, ...numbers: number[]) => title + numbers.length, 1, 2);
+
 restPrefix('a');
 restPrefix('a', 3, 4);
 // @ts-expect-error required prefix remains required
@@ -227,6 +244,7 @@ const defaultDeepDebounce = debounceDeep((value: number) => value, 0, {
 });
 const defaultScheduledResult: number | undefined = defaultDebounce(1);
 const defaultFlushedResult: number | undefined = defaultThrottle.flush();
+
 sleep(0, {});
 throttle((value: number) => value, 0, {});
 debounce((value: number) => value, 0, {});
@@ -234,9 +252,11 @@ function configuredTimers(leading: boolean | undefined, trailing: boolean | unde
   throttle((value: number) => value, 0, { leading, trailing });
   debounce((value: number) => value, 0, { leading, trailing, maxWait });
 }
+
 function configuredSleep(signal: SleepOptions['signal']) {
   return sleep(0, { signal });
 }
+
 // @ts-expect-error null is not an omitted cancellation signal
 sleep(0, { signal: null });
 // @ts-expect-error a structural cancellation signal still requires event methods

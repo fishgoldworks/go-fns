@@ -1,4 +1,5 @@
 'use strict';
+
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -59,6 +60,7 @@ suite('timer host compatibility', function () {
         ],
         { encoding: 'utf8', timeout: 10000 }
       );
+
       assert.ifError(run.error);
       assert.equal(run.status, 0, run.stdout + run.stderr);
       assert.match(run.stdout, /host contract checked/);
@@ -92,6 +94,7 @@ test('a source consumer without any host alias gets a clear lazy failure', () =>
     ],
     { encoding: 'utf8', timeout: 10000 }
   );
+
   assert.ifError(run.error);
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /unsupported host checked/);

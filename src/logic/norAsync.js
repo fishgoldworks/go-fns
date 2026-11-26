@@ -16,7 +16,7 @@ var apply = Reflect.apply;
  * rejections stop evaluation and reject with the original value.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated synchronously, including those that would be skipped by short circuit.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#norasyncfns | Full API documentation}
  * @example
  * const isNeitherZeroNorPositive = norAsync(value => value === 0, async value => value > 0);
  * await isNeitherZeroNorPositive(-3);  // => true
@@ -35,6 +35,7 @@ function norAsync(fns) {
         return false;
       }
     }
+
     return fns.length > 0;
   };
 }

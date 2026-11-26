@@ -1,13 +1,13 @@
 """Compare the retained 2.0.0 and candidate minified bundles in fresh Chromium pages."""
 import argparse
 import json
-import hashlib
 import os
 import platform
 import shutil
 import statistics
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from benchmark_inputs import capture_inputs, assert_unchanged
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -27,6 +27,9 @@ for entry in [args.baseline, args.candidate]:
     if not entry.is_file():
         parser.error('Missing bundle: ' + str(entry))
 options = {'samples': args.samples, 'targetMs': args.target_ms, 'warmupMs': args.warmup_ms, 'filter': args.filter}
+entries = {kind: getattr(args, kind) for kind in ['baseline', 'candidate']}
+workload = root / 'benchmarks/scenarios.js'
+identity = capture_inputs(entries, Path(__file__), workload)
 runs = {'baseline': [], 'candidate': []}
 with sync_playwright() as p:
     launch = {'headless': True, 'args': ['--no-sandbox']}
@@ -46,7 +49,7 @@ with sync_playwright() as p:
                 try:
                     page.set_content('<!doctype html><title>go-fns benchmark</title>')
                     page.add_script_tag(path=str(getattr(args, kind).resolve()))
-                    page.add_script_tag(path=str(root / 'benchmarks/scenarios.js'))
+                    page.add_script_tag(path=str(workload))
                     result = page.evaluate('options => GoFnsBench.measure(Functions, options)', options)
                     if errors:
                         raise RuntimeError('; '.join(errors))
@@ -70,8 +73,8 @@ for index, baseline in enumerate(runs['baseline'][0]['cases']):
     cases.append(case)
 if not cases:
     raise RuntimeError('No scenarios match the filter.')
-artifacts = {kind: {'path': str(getattr(args, kind)), 'sha256': hashlib.sha256(getattr(args, kind).read_bytes()).hexdigest()} for kind in ['baseline', 'candidate']}
-report = {'artifacts': artifacts, 'chromium': version, 'platform': platform.platform(), 'rounds': args.rounds, 'options': options, 'cases': cases}
+assert_unchanged(identity, entries, Path(__file__), workload)
+report = {**identity, 'chromium': version, 'platform': platform.platform(), 'rounds': args.rounds, 'options': options, 'cases': cases}
 for case in cases:
     print(f"{case['name']:<35} {case['baseline']['medianNs']:>10.2f} -> {case['candidate']['medianNs']:>10.2f} ns/op  {case['speedup']:>5.2f}x")
 if args.output:

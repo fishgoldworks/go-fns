@@ -1,5 +1,7 @@
 'use strict';
+
 var expectFunction = require('./util/expectFunction');
+
 /**
  * Invokes a callback, awaits its result and reports success or failure in a result object.
  * The callback itself is its receiver. Callback throws, promise rejections and failures while
@@ -10,7 +12,7 @@ var expectFunction = require('./util/expectFunction');
  * @param {...*} args Arguments passed to the callback.
  * @returns {Promise<Object>} A promise resolving to a fresh `{ ok: true, value }` object with
  * the awaited value, or `{ ok: false, error }` with the exact failure.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptresultasyncfn-args | Full API documentation}
  * @example
  * await attemptResultAsync(async () => "dark");              // => { ok: true, value: "dark" }
  * await attemptResultAsync(() => Promise.reject("failed"));  // => { ok: false, error: "failed" }
@@ -26,4 +28,5 @@ async function attemptResultAsync(fn, ...args) {
     return { ok: false, error: error };
   }
 }
+
 module.exports = attemptResultAsync;

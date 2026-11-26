@@ -11,7 +11,7 @@ var expectFunction = require('./util/expectFunction');
  * @param {...*} args Arguments passed to the callback.
  * @returns {*} The callback result or exact thrown value, including `null` or `undefined`.
  * @throws {TypeError} If `fn` is not a function; validation happens outside the catch.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#attemptfn-args | Full API documentation}
  * @example
  * attempt(JSON.parse, "1");                        // => 1
  * attempt(JSON.parse, "") instanceof SyntaxError;  // => true

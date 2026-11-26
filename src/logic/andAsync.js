@@ -15,7 +15,7 @@ var normalizeFunctions = require('../util/normalizeFunctions');
  * rejections stop evaluation and reject with the original value.
  * @throws {TypeError} If an entry is neither a function, `null` nor `undefined`. All entries
  * are validated synchronously, including those that would be skipped by short circuit.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#andasyncfns | Full API documentation}
  * @example
  * const isPositiveInteger = andAsync(Number.isInteger, async value => value > 0);
  * await isPositiveInteger(3);    // => true
@@ -34,6 +34,7 @@ function andAsync(fns) {
         return false;
       }
     }
+
     return fns.length > 0;
   };
 }

@@ -13,9 +13,11 @@ import {
 
 // Requirements must cover every callback that could be selected at runtime.
 const differentInputs = Math.random() > 0.5 ? (n: number) => n.toFixed() : (s: string) => s.toUpperCase();
+
 // @ts-expect-error the saved string is invalid for the numeric alternative
 partialRight(differentInputs, 'x');
 const unchanged = partialRight(differentInputs);
+
 // @ts-expect-error no suffix does not erase the string alternative
 unchanged(1);
 // @ts-expect-error no suffix does not erase the numeric alternative
@@ -25,6 +27,7 @@ const differingPrefix =
     ? (n: number, suffix: string) => n.toFixed() + suffix
     : (s: string, suffix: string) => s.toUpperCase() + suffix;
 const right = partialRight(differingPrefix, 'x');
+
 // @ts-expect-error the selected callback might need a string prefix
 right(1);
 // @ts-expect-error the selected callback might need a numeric prefix
@@ -35,6 +38,7 @@ const structural =
     : (v: { b: string }, suffix: string) => v.b.toUpperCase() + suffix;
 const both = partialRight(structural, '!');
 const combined: string = both({ a: 1, b: 'x' });
+
 // @ts-expect-error the selected callback may require b
 both({ a: 1 });
 
@@ -53,6 +57,7 @@ attemptResultAsync(differentInputs, 1);
 delay(differentInputs, 0, 1);
 const shared = Math.random() > 0.5 ? (v: { a: number }) => v.a : (v: { b: string }) => v.b.length;
 const repeated: number[] = repeat(shared, 1, { a: 1, b: 'b' });
+
 attempt(shared, { a: 1, b: 'b' });
 attemptResult(shared, { a: 1, b: 'b' });
 attemptResultAsync(shared, { a: 1, b: 'b' });
@@ -67,12 +72,14 @@ const dynamicStages: (((this: { prefix: string }, s: string) => string) | ((s: s
 ];
 const dynamic = pipe(...dynamicStages);
 const dynamicAsync = pipeAsync(...dynamicStages);
+
 // @ts-expect-error a possible stage requires a receiver
 dynamic('x');
 // @ts-expect-error an async pipeline has the same receiver requirements
 dynamicAsync('x');
 const value: string | undefined = dynamic.call({ prefix: 'p' }, 'x');
 const promised: Promise<string | undefined> = dynamicAsync.call({ prefix: 'p' }, 'x');
+
 // @ts-expect-error incorrect receiver remains invalid
 dynamic.call({}, 'x');
 // @ts-expect-error incorrect receiver remains invalid for async execution
@@ -85,6 +92,7 @@ const receiverUnion =
         return this.prefix.toUpperCase() + n;
       }
     : (n: number) => n;
+
 // @ts-expect-error one possible callback cannot use itself as its receiver
 repeat(receiverUnion, 1, 1);
 // @ts-expect-error async repetition has the same receiver policy
@@ -102,6 +110,7 @@ const ownReceiver = Object.assign(
   { offset: 2 }
 );
 const safeUnion = Math.random() > 0.5 ? ownReceiver : (n: number) => String(n);
+
 repeat(safeUnion, 1, 2);
 repeatAsync(safeUnion, 1, 2);
 attempt(safeUnion, 2);
@@ -117,11 +126,13 @@ const anyReceiverUnion =
     : function (this: any, n: number) {
         return n;
       };
+
 const anyReceiverOnce = once(anyReceiverUnion);
 const anyReceiverPipe = pipe(anyReceiverUnion);
 const anyReceiverAsync = pipeAsync(anyReceiverUnion);
 const anyReceiverRight = partialRight(anyReceiverUnion, 1);
 const anyReceiverSparse = pipeAsync(null, anyReceiverUnion, undefined);
+
 // @ts-expect-error the concrete receiver is still required
 anyReceiverOnce(1);
 // @ts-expect-error the concrete receiver is still required
@@ -148,6 +159,7 @@ const safeAnyReceiverRight: string | number = anyReceiverRight.call({ prefix: 'x
 const onlyAnyReceiver = function (this: any, n: number) {
   return n;
 };
+
 const onlyAnyOnce: number = once(onlyAnyReceiver)(1);
 const onlyAnyPipe: number = pipe(onlyAnyReceiver)(1);
 const onlyAnyAsync: Promise<number> = pipeAsync(onlyAnyReceiver)(1);

@@ -4,7 +4,7 @@ var expectFunction = require('./util/expectFunction');
 var apply = Reflect.apply;
 
 /**
- * Creates a function that awaits a predicate and conditionally transforms one input.
+ * Creates a conditional transformation that awaits the predicate before deciding whether to transform the input.
  * Construction validates both callbacks synchronously without invoking them. Each call
  * starts the predicate immediately and awaits it once before invoking the transform, even
  * for a synchronous predicate result. Both callbacks receive exactly one original input
@@ -18,7 +18,7 @@ var apply = Reflect.apply;
  * and thenable inputs are unwrapped in the returned result. Callback throws and rejections
  * stop evaluation and reject with the original value.
  * @throws {TypeError} If either required callback is not a function. Validation is synchronous.
- * @see {@link https://github.com/koyote130708/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
+ * @see {@link https://github.com/fishgoldworks/go-fns/blob/master/docs/API.md#whenasyncpredicate-transform | Full API documentation}
  * @example
  * const makePositive = whenAsync(async value => value < 0, async value => -value);
  * await makePositive(-3);                                            // => 3

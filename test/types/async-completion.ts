@@ -24,6 +24,7 @@ const transformed = whenAsync(
   (value) => Promise.resolve(value.toFixed())
 );
 const transformedResult: Promise<number | string> = transformed(1);
+
 type TransformedResult = Assert<Equal<ReturnType<typeof transformed>, Promise<number | string>>>;
 // @ts-expect-error the factory returns a wrapper synchronously
 const factoryPromise: Promise<unknown> = transformed;
@@ -32,6 +33,7 @@ const syncTransform: number | string = whenAsync(
   (value: number) => value,
   (value) => value.toFixed()
 )(1);
+
 // @ts-expect-error the predicate and transform require a numeric input
 transformed('one');
 // @ts-expect-error the required input cannot be omitted
@@ -42,16 +44,19 @@ const customTransform = whenAsync(
   (value: number) => unknownResult,
   () => thenable
 );
+
 type CustomTransform = Assert<Equal<ReturnType<typeof customTransform>, Promise<number | string>>>;
 const unknownTransform = whenAsync(
   (value: number) => thenable,
   () => unknownResult
 );
+
 type UnknownTransform = Assert<Equal<ReturnType<typeof unknownTransform>, Promise<unknown>>>;
 const optionalTransform = whenAsync(
   (value?: number) => value,
   (value?: number) => value ?? 0
 );
+
 optionalTransform();
 optionalTransform(1);
 type OptionalTransform = Assert<Equal<ReturnType<typeof optionalTransform>, Promise<number | undefined>>>;
@@ -59,6 +64,7 @@ const ignoredTransform = whenAsync(
   () => false,
   () => 'ignored'
 );
+
 ignoredTransform();
 ignoredTransform(1);
 // @ts-expect-error ignored callbacks still yield a unary wrapper
@@ -67,6 +73,7 @@ const requiredTransform = whenAsync(
   (value?: number) => value,
   (value: number) => value + 1
 );
+
 requiredTransform(1);
 // @ts-expect-error an optional predicate cannot erase the transform's required input
 requiredTransform();
@@ -90,6 +97,7 @@ const restWhen = whenAsync(
   (...values: number[]) => values.length,
   (value: number, ...labels: string[]) => value
 );
+
 restWhen(1);
 // @ts-expect-error additional wrapper arguments are not accepted even for rest callbacks
 restWhen(1, 'label');
@@ -99,6 +107,7 @@ const promisedInput = whenAsync(
   (value: PromiseLike<number>) => value.then(Boolean),
   () => 'selected'
 );
+
 type PromisedInput = Assert<Equal<ReturnType<typeof promisedInput>, Promise<number | string>>>;
 promisedInput(Promise.resolve(2));
 // @ts-expect-error callbacks receive promises, not their resolved values
@@ -107,6 +116,7 @@ const impossiblePromiseInput = whenAsync(
   (value: Promise<number>) => value,
   (value: number) => value
 );
+
 // @ts-expect-error a promise cannot satisfy the transform's numeric input
 impossiblePromiseInput(Promise.resolve(2));
 // @ts-expect-error a number cannot satisfy the predicate's promise input
@@ -120,6 +130,7 @@ const whenReceiver = whenAsync(
     return Promise.resolve(this.label + value);
   }
 );
+
 whenReceiver.call({ enabled: true, label: 'n' }, 1);
 // @ts-expect-error both callback receivers remain required
 whenReceiver.call({ enabled: true }, 1);
@@ -127,6 +138,7 @@ whenReceiver.call({ enabled: true }, 1);
 whenReceiver(1);
 declare const unaryUnion: (() => unknown) | ((this: { minimum: number }, value: number) => Promise<boolean>);
 const whenUnion = whenAsync(unaryUnion, (value: number) => value + 1);
+
 whenUnion.call({ minimum: 0 }, 1);
 // @ts-expect-error a shorter callback union member cannot erase the required input
 whenUnion.call({ minimum: 0 });
@@ -141,6 +153,7 @@ declare const structuralTransform:
   | ((this: { title: string }, value: { active: boolean }) => string)
   | ((this: { minimum: number }, value: { verified: boolean }) => Promise<number>);
 const whenStructuralUnion = whenAsync(() => true, structuralTransform);
+
 whenStructuralUnion.call({ title: 'x', minimum: 0 }, { active: true, verified: true });
 // @ts-expect-error every transform union member's input must be safe
 whenStructuralUnion.call({ title: 'x', minimum: 0 }, { active: true });
@@ -152,10 +165,13 @@ const isString = (value: string | null): value is string => value !== null;
 const guardedWhen = whenAsync(isString, (value) => {
   // @ts-expect-error an async conditional does not supply type guard narrowing
   value.toUpperCase();
+
   return value;
 });
+
 guardedWhen(null);
 const independentlySafeWhen = whenAsync(isString, (value: string) => value.toUpperCase());
+
 independentlySafeWhen('x');
 // @ts-expect-error null is not independently safe for the transform
 independentlySafeWhen(null);
@@ -166,6 +182,7 @@ const choice = ifElseAsync(
   (value, label) => value + label.length
 );
 const choiceResult: Promise<string | number> = choice(1, 'one');
+
 type ChoiceResult = Assert<Equal<ReturnType<typeof choice>, Promise<string | number>>>;
 // @ts-expect-error all required inputs remain required
 choice(1);
@@ -176,12 +193,14 @@ const customChoice = ifElseAsync(
   () => thenable,
   () => Promise.resolve(1)
 );
+
 type CustomChoice = Assert<Equal<ReturnType<typeof customChoice>, Promise<string | number>>>;
 const unknownChoice = ifElseAsync(
   () => thenable,
   () => unknownResult,
   () => 1
 );
+
 type UnknownChoice = Assert<Equal<ReturnType<typeof unknownChoice>, Promise<unknown>>>;
 // prettier-ignore
 // @ts-expect-error both branches are required
@@ -200,6 +219,7 @@ const mixedChoice = ifElseAsync(
   (value: number) => value,
   (value: number, label: string) => label + value
 );
+
 mixedChoice(1, 'one');
 // @ts-expect-error ignored arguments cannot erase the longer branch's required argument
 mixedChoice(1);
@@ -208,6 +228,7 @@ const optionalChoice = ifElseAsync(
   () => 0,
   (value?: number) => value
 );
+
 optionalChoice();
 optionalChoice(1);
 const requiredChoice = ifElseAsync(
@@ -215,6 +236,7 @@ const requiredChoice = ifElseAsync(
   () => 0,
   (value: number) => value
 );
+
 requiredChoice(1);
 // @ts-expect-error optional callbacks cannot erase a branch's required input
 requiredChoice();
@@ -223,6 +245,7 @@ const variadicChoice = ifElseAsync(
   () => 'yes',
   (name: string, first: number, ...values: number[]) => first + values.length
 );
+
 variadicChoice('n', 1, 2, 3);
 // @ts-expect-error mandatory arguments before a rest remain required
 variadicChoice('n');
@@ -239,12 +262,14 @@ const choiceReceiver = ifElseAsync(
     return value - this.minimum;
   }
 );
+
 choiceReceiver.call({ enabled: true, prefix: 'x', minimum: 0 }, 1);
 // @ts-expect-error every possibly reached callback contributes its receiver requirement
 choiceReceiver.call({ enabled: true, prefix: 'x' }, 1);
 // @ts-expect-error callback receiver requirements cannot be omitted
 choiceReceiver(1);
 const unionChoice = ifElseAsync(unaryUnion, () => false, structuralTransform);
+
 unionChoice.call({ minimum: 0, title: 'x' }, 1 as number & { active: boolean; verified: boolean });
 // @ts-expect-error every callback union alternative contributes required arguments
 unionChoice.call({ minimum: 0, title: 'x' });
@@ -253,6 +278,7 @@ unionChoice(1 as number & { active: boolean; verified: boolean });
 declare const mixedBranch:
   (() => string) | ((this: { prefix: string }, value: number, label: string) => Promise<number>);
 const mixedBranchChoice = ifElseAsync(unaryUnion, mixedBranch, () => 0);
+
 mixedBranchChoice.call({ minimum: 0, prefix: 'x' }, 1, 'one');
 type MixedBranchChoice = Assert<Equal<ReturnType<typeof mixedBranchChoice>, Promise<string | number>>>;
 // @ts-expect-error the longer possible branch's required argument cannot disappear
@@ -264,20 +290,24 @@ const guardChoice = ifElseAsync(
   (value) => {
     // @ts-expect-error the true branch receives no async guard narrowing
     value.toUpperCase();
+
     return value;
   },
   (value) => {
     // @ts-expect-error the false branch receives no complement narrowing
     const onlyNull: null = value;
+
     return value;
   }
 );
+
 guardChoice(null);
 const independentlySafeChoice = ifElseAsync(
   isString,
   (value: string) => value.toUpperCase(),
   () => 'no'
 );
+
 independentlySafeChoice('x');
 // @ts-expect-error null cannot be passed to a possibly selected string-only branch
 independentlySafeChoice(null);
@@ -290,11 +320,13 @@ for (const factory of [norAsync, xorAsync]) {
     null,
     undefined
   );
+
   combined(1);
   combined(1, 'one');
   type CombinedResult = Assert<Equal<ReturnType<typeof combined>, Promise<boolean>>>;
   // @ts-expect-error predicates always return promises
   const syncResult: boolean = combined(1);
+
   // @ts-expect-error a required argument cannot vanish
   combined();
   // @ts-expect-error required argument types remain enforced
@@ -303,6 +335,7 @@ for (const factory of [norAsync, xorAsync]) {
   combined(1, 2);
   const empty: Promise<boolean> = factory()();
   const nullish: Promise<boolean> = factory(null, undefined)('unused');
+
   // @ts-expect-error configured non-functions are invalid
   factory(1);
   // @ts-expect-error configured promises are invalid
@@ -312,6 +345,7 @@ for (const factory of [norAsync, xorAsync]) {
     (value: number) => value,
     (value: number, label: string) => Promise.resolve(label)
   );
+
   mixed(1, 'one');
   // @ts-expect-error shorter callbacks cannot erase the longest required argument list
   mixed(1);
@@ -319,12 +353,14 @@ for (const factory of [norAsync, xorAsync]) {
     (name: string, first: number, ...values: number[]) => values,
     () => false
   );
+
   rest('n', 1, 2, 3);
   // @ts-expect-error rest element types remain enforced
   rest('n', 1, 'two');
   // @ts-expect-error required inputs before a rest remain required
   rest('n');
   const union = factory(unaryUnion, mixedBranch);
+
   union.call({ minimum: 0, prefix: 'x' }, 1, 'one');
   // @ts-expect-error callback unions retain required inputs
   union.call({ minimum: 0, prefix: 'x' }, 1);
@@ -343,6 +379,7 @@ for (const factory of [norAsync, xorAsync]) {
         }
       : null;
   const maybe = factory(() => false, optional, nullable);
+
   maybe.call({ prefix: 'x', minimum: 0 }, { active: true, verified: true });
   // @ts-expect-error every possibly present predicate contributes its required input
   maybe.call({ prefix: 'x', minimum: 0 }, { active: true });
@@ -350,6 +387,7 @@ for (const factory of [norAsync, xorAsync]) {
   maybe.call({ prefix: 'x' }, { active: true, verified: true });
   const dynamicPredicates: (typeof optional | typeof nullable)[] = [];
   const dynamic = factory(...dynamicPredicates);
+
   dynamic.call({ prefix: 'x', minimum: 0 }, { active: true, verified: true });
   // @ts-expect-error dynamic lists retain all possible input requirements
   dynamic.call({ prefix: 'x', minimum: 0 }, { verified: true });
@@ -359,11 +397,13 @@ for (const factory of [norAsync, xorAsync]) {
     (value: number) => value,
     (value: string) => value
   );
+
   // @ts-expect-error number cannot satisfy both callback input types
   impossible(1);
   // @ts-expect-error string cannot satisfy both callback input types
   impossible('one');
   const guard = factory(isString);
+
   type GuardResult = Assert<Equal<ReturnType<typeof guard>, Promise<boolean>>>;
   // @ts-expect-error asynchronous predicates do not promise synchronous narrowing
   const narrowingGuard: (value: string | null) => value is string = guard;
@@ -374,6 +414,7 @@ const explicitUndefinedWhen = whenAsync(
   (value: number | undefined) => value,
   () => 0
 );
+
 explicitUndefinedWhen(undefined);
 explicitUndefinedWhen();
 const explicitUndefinedChoice = ifElseAsync(
@@ -381,6 +422,7 @@ const explicitUndefinedChoice = ifElseAsync(
   () => 1,
   () => 0
 );
+
 explicitUndefinedChoice(undefined);
 // @ts-expect-error required input positions remain required
 explicitUndefinedChoice();
@@ -390,6 +432,7 @@ const promisedChoice = ifElseAsync(
   (value, label) => value.then((number) => label + number),
   (value, label) => value.then((number) => number + label.length)
 );
+
 promisedChoice(Promise.resolve(1), 'one');
 type PromisedChoice = Assert<Equal<ReturnType<typeof promisedChoice>, Promise<string | number>>>;
 // @ts-expect-error original arguments reach callbacks before awaiting their returned values
@@ -404,12 +447,14 @@ type DefaultXorNamed = Assert<Equal<typeof api.xorAsync, typeof xorAsync>>;
 // A union of call tuples belongs to one callback: only one-argument alternatives are forwarded.
 const zeroOrNumber = (...args: [] | [value: number]) => args.length === 0 || args[0].toFixed() === '1';
 const zeroOrNumberWhen = whenAsync(zeroOrNumber, () => 'selected');
+
 zeroOrNumberWhen(1);
 // @ts-expect-error an empty tuple does not permit the one explicit undefined forwarded by whenAsync
 zeroOrNumberWhen();
 // @ts-expect-error undefined is not accepted by the one-argument alternative
 zeroOrNumberWhen(undefined);
 const zeroOrNumberTransform = whenAsync(() => true, zeroOrNumber);
+
 zeroOrNumberTransform(1);
 // @ts-expect-error transform tuple alternatives cannot turn an empty tuple into explicit undefined
 zeroOrNumberTransform();
@@ -419,8 +464,10 @@ zeroOrNumberTransform(undefined);
 const stringOrNumber = (...args: [value: string] | [value: number]) => !!args[0];
 const stringOrNumberWhen = whenAsync(stringOrNumber, (value) => {
   type ContextualTupleInput = Assert<Equal<typeof value, string | number>>;
+
   return Boolean(value);
 });
+
 stringOrNumberWhen('one');
 stringOrNumberWhen(1);
 type TupleUnionWhenResult = Assert<Equal<ReturnType<typeof stringOrNumberWhen>, Promise<string | number | boolean>>>;
@@ -429,15 +476,18 @@ stringOrNumberWhen(true);
 // @ts-expect-error neither one-argument call shape accepts undefined
 stringOrNumberWhen();
 const stringOrNumberTransform = whenAsync(() => true, stringOrNumber);
+
 stringOrNumberTransform('one');
 stringOrNumberTransform(1);
 // @ts-expect-error transform call alternatives do not permit unrelated inputs
 stringOrNumberTransform(true);
 
 const oneOrTwo = (...args: [value: number] | [value: number, label: string]) => args[0] > 0;
+
 whenAsync(oneOrTwo, () => false)(1);
 whenAsync(() => true, oneOrTwo)(1);
 const zeroOrTwo = (...args: [] | [value: number, label: string]) => args.length === 0 || args[0] > 0;
+
 // @ts-expect-error no alternative accepts exactly one forwarded argument
 whenAsync(zeroOrTwo, () => false);
 // @ts-expect-error no transform alternative accepts exactly one forwarded argument
@@ -445,10 +495,12 @@ whenAsync(() => true, zeroOrTwo);
 
 const numberOrTwoStrings = (...args: [value: number] | [value: string, label: string]) => !!args[0];
 const onlyNumberWhen = whenAsync(numberOrTwoStrings, () => false);
+
 onlyNumberWhen(1);
 // @ts-expect-error the string input belongs only to a two-argument call shape
 onlyNumberWhen('one');
 const onlyNumberTransform = whenAsync(() => true, numberOrTwoStrings);
+
 onlyNumberTransform(1);
 // @ts-expect-error the transform's string input requires an unavailable second argument
 onlyNumberTransform('one');
@@ -458,12 +510,14 @@ declare const tupleCallbackUnion:
   | ((this: { prefix: string }, ...args: [value: string] | [value: number]) => boolean)
   | ((this: { minimum: number }, value: number) => Promise<boolean>);
 const tupleCallbackWhen = whenAsync(tupleCallbackUnion, () => false);
+
 tupleCallbackWhen.call({ prefix: 'x', minimum: 0 }, 1);
 // @ts-expect-error the numeric callback alternative must also accept the input
 tupleCallbackWhen.call({ prefix: 'x', minimum: 0 }, 'one');
 // @ts-expect-error every possible callback retains its receiver requirement
 tupleCallbackWhen.call({ prefix: 'x' }, 1);
 const tupleCallbackTransform = whenAsync(() => true, tupleCallbackUnion);
+
 tupleCallbackTransform.call({ prefix: 'x', minimum: 0 }, 1);
 // @ts-expect-error every possible transform must accept the input
 tupleCallbackTransform.call({ prefix: 'x', minimum: 0 }, 'one');
@@ -476,6 +530,7 @@ const tupleChoice = ifElseAsync(
   () => 1,
   () => 0
 );
+
 tupleChoice();
 tupleChoice(1);
 // @ts-expect-error no tuple alternative accepts a string
@@ -487,6 +542,7 @@ const tupleBranchChoice = ifElseAsync(
   zeroOrNumber,
   () => false
 );
+
 tupleBranchChoice();
 tupleBranchChoice(1);
 // @ts-expect-error branch tuple alternatives retain their input types
@@ -500,6 +556,7 @@ const correlatedChoice = ifElseAsync(
   () => 1,
   () => 0
 );
+
 correlatedChoice(1, 'one');
 correlatedChoice('one', 1);
 // @ts-expect-error the accepted tuples correlate their first and second argument types
@@ -509,6 +566,7 @@ correlatedChoice('one', 'one');
 
 for (const factory of [norAsync, xorAsync]) {
   const tuplePredicate = factory(zeroOrNumber, () => false);
+
   tuplePredicate();
   tuplePredicate(1);
   // @ts-expect-error a no-argument tuple alternative cannot erase the numeric argument alternative
@@ -516,6 +574,7 @@ for (const factory of [norAsync, xorAsync]) {
   // @ts-expect-error an empty tuple does not mean one explicit undefined is accepted
   tuplePredicate(undefined);
   const correlatedPredicate = factory(() => false, correlatedArguments);
+
   correlatedPredicate(1, 'one');
   correlatedPredicate('one', 1);
   // @ts-expect-error complete tuple alternatives retain the relationship between argument types
@@ -532,6 +591,7 @@ const stringOrNumericPairChoice = ifElseAsync(
   () => 1,
   () => 0
 );
+
 stringOrNumericPairChoice('one');
 stringOrNumericPairChoice(1, 2);
 // @ts-expect-error string belongs only to the one-argument call shape
@@ -539,6 +599,7 @@ stringOrNumericPairChoice('unsafe', 2);
 
 for (const factory of [norAsync, xorAsync]) {
   const heterogeneousTuples = factory(oneStringOrTwoNumbers, twoArgumentStringCallback);
+
   // @ts-expect-error one callback requires two arguments, but the other accepts strings only when called with one
   heterogeneousTuples('unsafe', 2);
   // @ts-expect-error a numeric pair is not accepted by the separate string callback
@@ -547,6 +608,7 @@ for (const factory of [norAsync, xorAsync]) {
     Math.random() > 0.5 ? oneStringOrTwoNumbers : undefined;
   const nullableTupleCallback: typeof oneStringOrTwoNumbers | null = Math.random() > 0.5 ? oneStringOrTwoNumbers : null;
   const optionalTuples = factory(() => false, optionalTupleCallback, nullableTupleCallback);
+
   optionalTuples('one');
   optionalTuples(1, 2);
   // @ts-expect-error possibly present predicates retain complete tuple alternatives
@@ -555,6 +617,7 @@ for (const factory of [norAsync, xorAsync]) {
   optionalTuples(1);
   const dynamicTupleCallbacks: (typeof oneStringOrTwoNumbers | null | undefined)[] = [];
   const dynamicTuples = factory(...dynamicTupleCallbacks);
+
   dynamicTuples('one');
   dynamicTuples(1, 2);
   // @ts-expect-error dynamic predicates retain correlations between argument types and arity
@@ -566,10 +629,12 @@ for (const factory of [norAsync, xorAsync]) {
 // A suffix-only variadic can still have a valid one-argument call.
 const trailingNumber = (...args: [...labels: string[], value: number]) => args.length > 0;
 const trailingNumberWhen = whenAsync(trailingNumber, () => false);
+
 trailingNumberWhen(1);
 // @ts-expect-error a string can precede the suffix but cannot replace the required numeric suffix
 trailingNumberWhen('one');
 const trailingNumberTransform = whenAsync(() => true, trailingNumber);
+
 trailingNumberTransform(1);
 // @ts-expect-error the transform's only forwarded value must satisfy its mandatory suffix
 trailingNumberTransform('one');
@@ -579,6 +644,7 @@ const inferredStringWhen = whenAsync(
   (value) => value != null,
   (value: string) => value.toUpperCase()
 );
+
 inferredStringWhen('hello');
 type InferredStringWhen = Assert<Equal<ReturnType<typeof inferredStringWhen>, Promise<string>>>;
 // @ts-expect-error the transform requires a string
@@ -591,6 +657,7 @@ const inferredDefaultWhen = api.whenAsync(
   (value) => value != null,
   (value: string) => value.toUpperCase()
 );
+
 // @ts-expect-error the default-object export retains the transform's input
 inferredDefaultWhen(123);
 type InferredDefaultWhen = Assert<Equal<ReturnType<typeof inferredDefaultWhen>, Promise<string>>>;
@@ -598,11 +665,13 @@ const inferredNumericWhen = whenAsync(
   (value: number) => value > 0,
   (value) => value + 1
 );
+
 type InferredNumericWhen = Assert<Equal<ReturnType<typeof inferredNumericWhen>, Promise<number>>>;
 const ignoredPredicateWhen = whenAsync(
   () => true,
   (value: number) => value + 1
 );
+
 ignoredPredicateWhen(1);
 // @ts-expect-error an ignored predicate input cannot erase the transform's input
 ignoredPredicateWhen();
@@ -611,11 +680,13 @@ const explicitUnknownWhen = whenAsync(
   (value: unknown) => value != null,
   (value: string) => value.toUpperCase()
 );
+
 type ExplicitUnknownWhen = Assert<Equal<ReturnType<typeof explicitUnknownWhen>, Promise<string>>>;
 const anyPredicateWhen = whenAsync(
   (value: any) => value != null,
   (value: string) => value.toUpperCase()
 );
+
 // @ts-expect-error even an explicit any predicate cannot erase a concrete transform requirement
 anyPredicateWhen(123);
 type AnyPredicateWhen = Assert<Equal<ReturnType<typeof anyPredicateWhen>, Promise<string>>>;
@@ -624,11 +695,13 @@ const inferredAwaitedWhen = whenAsync(
   (value) => value != null,
   (value: string) => Promise.resolve(value.length)
 );
+
 type InferredAwaitedWhen = Assert<Equal<ReturnType<typeof inferredAwaitedWhen>, Promise<string | number>>>;
 const inferredOptionalWhen = whenAsync(
   (value) => value != null,
   (value?: number) => value ?? 0
 );
+
 inferredOptionalWhen();
 inferredOptionalWhen(1);
 type InferredOptionalWhen = Assert<Equal<ReturnType<typeof inferredOptionalWhen>, Promise<number | undefined>>>;
@@ -641,6 +714,7 @@ const inferredWhenReceiver = whenAsync(
   },
   (value) => value + 1
 );
+
 inferredWhenReceiver.call({ enabled: true }, 1);
 // @ts-expect-error the inferred transform cannot erase the predicate's receiver
 inferredWhenReceiver(1);
@@ -651,6 +725,7 @@ const inferredIfElseReceiver = ifElseAsync(
   (value) => value + 1,
   (value) => value - 1
 );
+
 inferredIfElseReceiver.call({ enabled: true }, 1);
 // @ts-expect-error the inferred branches cannot erase the predicate's receiver
 inferredIfElseReceiver(1);
@@ -658,6 +733,7 @@ inferredIfElseReceiver(1);
 const norAsyncExplicitCallback = norAsync<(this: { minimum: number }, value: number) => boolean, []>(function (value) {
   return value > this.minimum;
 });
+
 norAsyncExplicitCallback.call({ minimum: 0 }, 1);
 // @ts-expect-error explicit callback type arguments retain the required receiver
 norAsyncExplicitCallback(1);
@@ -667,6 +743,7 @@ norAsyncExplicitCallback.call({ minimum: 0 }, 'one');
 const xorAsyncExplicitCallback = xorAsync<(this: { minimum: number }, value: number) => boolean, []>(function (value) {
   return value > this.minimum;
 });
+
 xorAsyncExplicitCallback.call({ minimum: 0 }, 1);
 // @ts-expect-error explicit callback type arguments retain the required receiver
 xorAsyncExplicitCallback(1);
@@ -681,10 +758,12 @@ const predicateFromTransform = whenAsync(
     value.toFixed(0);
     // @ts-expect-error unknown members must not be permitted through contextual any
     value.missingMember();
+
     return value.toUpperCase() === 'HELLO';
   },
   (value: string) => value.toUpperCase()
 );
+
 predicateFromTransform('hello');
 type PredicateFromTransform = Assert<Equal<ReturnType<typeof predicateFromTransform>, Promise<string>>>;
 const predicateFromBranches = ifElseAsync(
@@ -694,11 +773,13 @@ const predicateFromBranches = ifElseAsync(
     value.toFixed(0);
     // @ts-expect-error unknown members must not be permitted through contextual any
     value.missingMember();
+
     return value.toUpperCase() === 'HELLO';
   },
   (value: string) => value.toUpperCase(),
   (value: string) => value.toLowerCase()
 );
+
 predicateFromBranches('hello');
 type PredicateFromBranches = Assert<Equal<ReturnType<typeof predicateFromBranches>, Promise<string>>>;
 const optionalPredicateInput = whenAsync(
@@ -706,10 +787,12 @@ const optionalPredicateInput = whenAsync(
     type PredicateInput = Assert<Equal<typeof value, number | undefined>>;
     // @ts-expect-error optional numeric inputs do not gain string methods
     value?.toUpperCase();
+
     return value?.toFixed() === '1';
   },
   (value?: number) => value ?? 0
 );
+
 optionalPredicateInput();
 optionalPredicateInput(1);
 type OptionalPredicateInput = Assert<Equal<ReturnType<typeof optionalPredicateInput>, Promise<number | undefined>>>;
@@ -718,11 +801,13 @@ const optionalBranchInput = ifElseAsync(
     type PredicateInput = Assert<Equal<typeof value, number | undefined>>;
     // @ts-expect-error optional numeric inputs do not gain string methods
     value?.toUpperCase();
+
     return value?.toFixed() === '1';
   },
   (value?: number) => value ?? 0,
   (value?: number) => value?.toFixed()
 );
+
 optionalBranchInput();
 optionalBranchInput(1);
 type OptionalBranchInput = Assert<Equal<ReturnType<typeof optionalBranchInput>, Promise<number | string | undefined>>>;
@@ -732,10 +817,12 @@ const inferredWhenEntry0 = whenAsync(
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
     value.toFixed(0);
+
     return value.length > 0;
   },
   (value: string) => value.toUpperCase()
 );
+
 inferredWhenEntry0('hello');
 
 const inferredWhenEntry1 = deepWhenAsync(
@@ -743,10 +830,12 @@ const inferredWhenEntry1 = deepWhenAsync(
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
     value.toFixed(0);
+
     return value.length > 0;
   },
   (value: string) => value.toUpperCase()
 );
+
 inferredWhenEntry1('hello');
 
 const inferredWhenEntry3 = api.whenAsync(
@@ -754,10 +843,12 @@ const inferredWhenEntry3 = api.whenAsync(
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
     value.toFixed(0);
+
     return value.length > 0;
   },
   (value: string) => value.toUpperCase()
 );
+
 inferredWhenEntry3('hello');
 
 const inferredChoiceEntry0 = ifElseAsync(
@@ -765,11 +856,13 @@ const inferredChoiceEntry0 = ifElseAsync(
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
     value.toFixed(0);
+
     return value.length > 0;
   },
   (value: string) => value.toUpperCase(),
   (value: string) => value.toLowerCase()
 );
+
 inferredChoiceEntry0('hello');
 
 const inferredChoiceEntry1 = deepIfElseAsync(
@@ -777,11 +870,13 @@ const inferredChoiceEntry1 = deepIfElseAsync(
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
     value.toFixed(0);
+
     return value.length > 0;
   },
   (value: string) => value.toUpperCase(),
   (value: string) => value.toLowerCase()
 );
+
 inferredChoiceEntry1('hello');
 
 const inferredChoiceEntry3 = api.ifElseAsync(
@@ -789,11 +884,13 @@ const inferredChoiceEntry3 = api.ifElseAsync(
     type PredicateInput = Assert<Equal<typeof value, string>>;
     // @ts-expect-error all entry points contextually type the predicate body
     value.toFixed(0);
+
     return value.length > 0;
   },
   (value: string) => value.toUpperCase(),
   (value: string) => value.toLowerCase()
 );
+
 inferredChoiceEntry3('hello');
 
 // No annotations means a safe unknown context, not implicit permission to use any member.
@@ -802,21 +899,25 @@ const unknownWhenInput = whenAsync(
     type UnconstrainedInput = Assert<Equal<typeof value, unknown>>;
     // @ts-expect-error inspect or annotate an unknown input before accessing members
     value.missingMember();
+
     return Boolean(value);
   },
   (value) => value
 );
+
 unknownWhenInput('hello');
 const unknownChoiceInput = ifElseAsync(
   (value) => {
     type UnconstrainedInput = Assert<Equal<typeof value, unknown>>;
     // @ts-expect-error inspect or annotate an unknown input before accessing members
     value.missingMember();
+
     return Boolean(value);
   },
   (value) => value,
   (value) => value
 );
+
 unknownChoiceInput('hello');
 const distinctInferredArguments = ifElseAsync(
   (value, label) => {
@@ -824,11 +925,13 @@ const distinctInferredArguments = ifElseAsync(
     type TextInput = Assert<Equal<typeof label, string>>;
     // @ts-expect-error the second argument retains its own string type
     label.toFixed();
+
     return value.toFixed() === label.toUpperCase();
   },
   (value: number, label: string) => label + value,
   (value: number, label: string) => value + label.length
 );
+
 type DistinctInferredArguments = Assert<Equal<ReturnType<typeof distinctInferredArguments>, Promise<number | string>>>;
 distinctInferredArguments(1, 'one');
 // @ts-expect-error argument positions remain distinct on the returned wrapper
@@ -837,14 +940,17 @@ const predicateReceiverFromTransform = whenAsync(
   function (value) {
     type ContextualReceiver = Assert<Equal<0 extends 1 & typeof this ? true : false, false>>;
     const enabled: boolean = this.enabled;
+
     // @ts-expect-error the annotated transform supplies the predicate's receiver context
     this.missingMember();
+
     return enabled && value.length > 0;
   },
   function (this: { enabled: boolean }, value: string) {
     return value.toUpperCase();
   }
 );
+
 predicateReceiverFromTransform.call({ enabled: true }, 'hello');
 // @ts-expect-error contextual inference preserves the required receiver
 predicateReceiverFromTransform('hello');
@@ -852,8 +958,10 @@ const predicateReceiverFromBranches = ifElseAsync(
   function (value) {
     type ContextualReceiver = Assert<Equal<0 extends 1 & typeof this ? true : false, false>>;
     const enabled: boolean = this.enabled;
+
     // @ts-expect-error the annotated branches supply the predicate's receiver context
     this.missingMember();
+
     return enabled && value.length > 0;
   },
   function (this: { enabled: boolean }, value: string) {
@@ -863,6 +971,7 @@ const predicateReceiverFromBranches = ifElseAsync(
     return value.toLowerCase();
   }
 );
+
 predicateReceiverFromBranches.call({ enabled: true }, 'hello');
 // @ts-expect-error contextual inference preserves the required receiver
 predicateReceiverFromBranches('hello');
@@ -872,14 +981,17 @@ declare const heterogeneousTransform:
   ((value: { active: boolean }) => string) | ((value: { verified: boolean }) => number);
 whenAsync((value) => {
   type NotAny = Assert<Equal<0 extends 1 & typeof value ? true : false, false>>;
+
   // @ts-expect-error annotate an input when the callbacks have no shared contextual signature
   return value.missingMember();
 }, heterogeneousTransform);
 const annotatedHeterogeneousWhen = whenAsync((value: unknown) => Boolean(value), heterogeneousTransform);
+
 annotatedHeterogeneousWhen({ active: true, verified: true });
 ifElseAsync(
   (value) => {
     type NotAny = Assert<Equal<0 extends 1 & typeof value ? true : false, false>>;
+
     // @ts-expect-error incompatible branch shapes cannot silently supply any
     return value.missingMember();
   },
@@ -891,6 +1003,7 @@ const annotatedHeterogeneousChoice = ifElseAsync(
   (value: { active: boolean }) => value.active,
   (value: { verified: boolean }) => value.verified
 );
+
 annotatedHeterogeneousChoice({ active: true, verified: true });
 declare const heterogeneousPredicate:
   | ((this: { enabled: boolean }, value: { active: boolean }) => boolean)
@@ -911,10 +1024,12 @@ const explicitWhenTypes = whenAsync<(value: string) => boolean, (value: string) 
   (value) => {
     // @ts-expect-error explicit callback type arguments still contextually check the body
     value.toFixed();
+
     return value.length > 0;
   },
   (value) => value.toUpperCase()
 );
+
 explicitWhenTypes('hello');
 const explicitChoiceTypes = ifElseAsync<
   (value: string) => boolean,
@@ -924,11 +1039,13 @@ const explicitChoiceTypes = ifElseAsync<
   (value) => {
     // @ts-expect-error explicit callback type arguments still contextually check the body
     value.toFixed();
+
     return value.length > 0;
   },
   (value) => value.toUpperCase(),
   (value) => value.length
 );
+
 explicitChoiceTypes('hello');
 type ExplicitWhenTypes = Assert<Equal<ReturnType<typeof explicitWhenTypes>, Promise<string>>>;
 type ExplicitChoiceTypes = Assert<Equal<ReturnType<typeof explicitChoiceTypes>, Promise<string | number>>>;
@@ -937,21 +1054,25 @@ type ExplicitChoiceTypes = Assert<Equal<ReturnType<typeof explicitChoiceTypes>, 
 const contextFromFalseBranch = ifElseAsync(
   (value) => {
     type PredicateInput = Assert<Equal<typeof value, string>>;
+
     return value.toUpperCase() === 'X';
   },
   () => 0,
   (value: string) => value.length
 );
+
 contextFromFalseBranch('x');
 // @ts-expect-error the false branch still requires a string
 contextFromFalseBranch();
 const contextFromTupleTransform = whenAsync(
   (value) => {
     type PredicateInput = Assert<Equal<typeof value, string>>;
+
     return value.toUpperCase() === 'X';
   },
   (...args: [] | [text: string]) => (args.length ? args[0].length : 0)
 );
+
 contextFromTupleTransform('x');
 type ContextFromTupleTransform = Assert<Equal<ReturnType<typeof contextFromTupleTransform>, Promise<string | number>>>;
 // @ts-expect-error whenAsync always forwards one argument, so the empty tuple is not available
@@ -961,6 +1082,7 @@ const contextFromTupleBranch = ifElseAsync(
   () => 0,
   (...args: [] | [text: string]) => (args.length ? args[0].length : 0)
 );
+
 contextFromTupleBranch();
 contextFromTupleBranch('x');
 // @ts-expect-error an empty tuple is not an explicit undefined argument
@@ -972,6 +1094,7 @@ const contextFromStructuralBranches = ifElseAsync(
   (value: { active: boolean }) => value.active,
   (value: { verified: boolean }) => value.verified
 );
+
 contextFromStructuralBranches({ active: true, verified: true });
 // @ts-expect-error both possible branch requirements remain required
 contextFromStructuralBranches({ active: true });

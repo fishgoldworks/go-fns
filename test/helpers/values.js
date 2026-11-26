@@ -1,4 +1,5 @@
 'use strict';
+
 const hostile = {
   [Symbol.toPrimitive]() {
     throw new Error('Validation must not coerce values');
@@ -12,6 +13,7 @@ const hostileProxy = new Proxy(
     }
   }
 );
+
 exports.invalidFunctions = [
   ['undefined', undefined],
   ['null', null],

@@ -1,4 +1,5 @@
 'use strict';
+
 // Fresh VM realms remove capabilities before any production module is evaluated.
 // Keep this harness executable on the actual Node.js 8.0.0 consumer runtime.
 var assert = require('assert');
@@ -46,6 +47,7 @@ var modes = ['commonjs', 'global', 'worker-global', 'amd', 'exports-only'];
 
 function prepare(scenario) {
   var context = vm.createContext({ assert: assert, scenario: scenario });
+
   vm.runInContext(
     `
     var host = this;
@@ -90,29 +92,39 @@ function prepare(scenario) {
   `,
     context
   );
+
   return context;
 }
 
 function loader(context) {
   var cache = Object.create(null);
+
   return function load(filename) {
     filename = require.resolve(filename);
-    if (cache[filename]) return cache[filename].exports;
+
+    if (cache[filename]) {
+      return cache[filename].exports;
+    }
+
     var module = { exports: {} };
+
     cache[filename] = module;
     var evaluate = vm.runInContext(
       '(function(require, module, exports) {\n' + fs.readFileSync(filename, 'utf8') + '\n})',
       context,
       { filename: 'capability-realm:' + filename, timeout: 1000 }
     );
+
     evaluate(
       function (relative) {
         assert.strictEqual(relative[0], '.', 'Production dependency must be local');
+
         return load(path.resolve(path.dirname(filename), relative));
       },
       module,
       module.exports
     );
+
     return module.exports;
   };
 }
@@ -123,12 +135,14 @@ function loadBundle(context, filename, mode) {
       assert.strictEqual(dependencies.length, 0);
       context.loaded = factory();
     };
+
     context.define.amd = true;
   } else if (mode === 'commonjs') {
     context.module = { exports: {} };
     context.exports = context.module.exports;
   } else if (mode === 'exports-only') context.exports = {};
   vm.runInContext(fs.readFileSync(filename, 'utf8'), context, { filename: filename, timeout: 1000 });
+
   return (
     context.loaded ||
     (context.module && context.module.exports) ||
@@ -139,16 +153,20 @@ function loadBundle(context, filename, mode) {
 
 async function rejects(promise, check) {
   var failed = false;
+
   try {
     await promise;
   } catch (error) {
     failed = true;
     check(error);
   }
+
   assert.strictEqual(failed, true, 'Expected a rejection');
 }
+
 function signalFixture() {
   var listener;
+
   return {
     aborted: false,
     reason: { cancelled: true },
@@ -169,16 +187,19 @@ function signalFixture() {
     }
   };
 }
+
 async function exercise(api, fixture, scenario) {
   var value = {},
     receiver = {},
     thrown = {};
+
   assert.strictEqual(
     api
       .pipe(function (a, b) {
         assert.strictEqual(this, receiver);
         assert.strictEqual(a, value);
         assert.strictEqual(b, 7);
+
         return a;
       })
       .call(receiver, value, 7),
@@ -262,11 +283,13 @@ async function exercise(api, fixture, scenario) {
   var once = api.once(function () {
     return value;
   });
+
   assert.strictEqual(once(), value);
   assert.strictEqual(once(), value);
   // Signal methods are required only on the supplied object, independently of constructors.
   for (var method of ['addEventListener', 'removeEventListener']) {
     var invalid = signalFixture();
+
     delete invalid[method];
     await rejects(api.sleep(5, { signal: invalid }), function (error) {
       assert.strictEqual(error.name, 'TypeError');
@@ -274,13 +297,16 @@ async function exercise(api, fixture, scenario) {
     });
     assert.strictEqual(fixture.jobs.length, 0);
   }
+
   var aborted = signalFixture();
+
   aborted.aborted = true;
   await rejects(api.sleep(5, { signal: aborted }), function (error) {
     assert.strictEqual(error, aborted.reason);
   });
   assert.strictEqual(fixture.jobs.length, 0);
   var missing = scenario.remove || [];
+
   if (missing.indexOf('setTimeout') !== -1) {
     assert.throws(function () {
       api.delay(function () {});
@@ -292,13 +318,16 @@ async function exercise(api, fixture, scenario) {
       var unsupported = api[name](function () {
         throw Error('Unsupported timer invoked callback');
       }, 5);
+
       assert.throws(function () {
         unsupported();
       }, /setTimeout/);
       assert.strictEqual(unsupported.pending(), false);
     }
+
     return;
   }
+
   var called = 0;
   var timer = api.delay(
     function (a) {
@@ -309,12 +338,14 @@ async function exercise(api, fixture, scenario) {
     5,
     value
   );
+
   assert.strictEqual(timer, fixture.jobs[0]);
   assert.strictEqual(fixture.timerReceiver, fixture.host);
   assert.strictEqual(called, 0);
   fixture.fire();
   assert.strictEqual(called, 1);
   var pause = api.sleep(5);
+
   assert.strictEqual(fixture.timerReceiver, fixture.host);
   fixture.fire();
   if (missing.indexOf('clearTimeout') !== -1) {
@@ -329,6 +360,7 @@ async function exercise(api, fixture, scenario) {
         5,
         { leading: false }
       );
+
       pending();
       assert.throws(function () {
         pending.flush();
@@ -336,11 +368,14 @@ async function exercise(api, fixture, scenario) {
       assert.strictEqual(pending.pending(), false);
       fixture.fire();
     }
+
     return;
   }
+
   assert.strictEqual(await pause, undefined);
   var signal = signalFixture();
   var cancelled = api.sleep(5, { signal: signal });
+
   assert.strictEqual(signal.listeners, 1);
   signal.abort();
   await rejects(cancelled, function (error) {
@@ -350,6 +385,7 @@ async function exercise(api, fixture, scenario) {
   assert.strictEqual(fixture.jobs.length, 0);
   var completedSignal = signalFixture();
   var completed = api.sleep(5, { signal: completedSignal });
+
   fixture.fire();
   assert.strictEqual(await completed, undefined);
   assert.strictEqual(completedSignal.listeners, 0);
@@ -361,11 +397,13 @@ async function exercise(api, fixture, scenario) {
         assert.strictEqual(this, receiver);
         assert.strictEqual(a, value);
         assert.strictEqual(b, 7);
+
         return a;
       },
       5,
       { leading: false }
     );
+
     scheduled.call(receiver, value, 7);
     assert.strictEqual(calls, 0);
     assert.strictEqual(scheduled.pending(), true);
@@ -379,6 +417,7 @@ async function exercise(api, fixture, scenario) {
     assert.strictEqual(scheduled.pending(), false);
     assert.strictEqual(fixture.jobs.length, 0);
   }
+
   if (scenario.clock || missing.indexOf('performance') !== -1) {
     assert.ok(fixture.dateReads > 0, 'Date.now fallback was not used');
     assert.strictEqual(fixture.performanceReads, 0);
@@ -393,21 +432,28 @@ async function run(entry, resolveFocused) {
   var bundled = /go-fns(?:\.min)?\.js$/.test(entry);
   var imports = bundled ? modes : resolveFocused ? ['root', 'focused', 'functions'] : ['root', 'focused'];
   var mappings = [];
+
   if (!bundled) {
     var pattern = /module\.exports\.(\w+) = require\('([^']+)'\)/g;
     var source = fs.readFileSync(entry, 'utf8');
     var match;
+
     while ((match = pattern.exec(source))) mappings.push(match);
   }
+
   var cases = 0;
+
   for (var scenario of scenarios) {
     for (var mode of imports) {
       var context = prepare(scenario);
+
       try {
         var api;
+
         if (bundled) api = loadBundle(context, entry, mode);
         else {
           var load = loader(context);
+
           if (mode === 'root') api = load(entry);
           else {
             api = {};
@@ -419,7 +465,8 @@ async function run(entry, resolveFocused) {
               );
           }
         }
-        assert.strictEqual(Object.keys(api).length, 34, 'Incomplete API import');
+
+        assert.strictEqual(Object.keys(api).length, 37, 'Incomplete API import');
         assert.strictEqual(context.fixture.clockReads, 0, 'Import read optional clock');
         context.importing = false;
         await exercise(api, context.fixture, scenario);
@@ -430,6 +477,8 @@ async function run(entry, resolveFocused) {
       }
     }
   }
+
   return { cases: cases, scenarios: scenarios.length, imports: imports };
 }
+
 module.exports = run;

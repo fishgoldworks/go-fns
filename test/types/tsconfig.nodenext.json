@@ -20,6 +20,9 @@
     "receiver-composition.ts",
     "bound-tuple-unions.ts",
     "result.ts",
-    "applyIf.ts"
+    "applyIf.ts",
+    "withDefaultArgs.ts",
+    "ary.ts",
+    "memoize.ts"
   ]
 }
